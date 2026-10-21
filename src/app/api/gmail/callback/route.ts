@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
   try {
     const client = oauthClient(await credentialsFor(mailbox), `${url.origin}${callbackPath}`);
     const { tokens } = await client.getToken(code);
+    // Google lets users untick individual permissions; without Gmail read access nothing works.
+    if (!tokens.scope?.split(" ").includes("https://www.googleapis.com/auth/gmail.readonly")) {
+      return fail(
+        "Gmail read access wasn't granted. Click Connect again and, on Google's permission screen, tick “View your email messages and settings” (or Select all) before continuing.",
+      );
+    }
     client.setCredentials(tokens);
     const profile = await gmail({ version: "v1", auth: client }).users.getProfile({ userId: "me" });
     const signedInAs = profile.data.emailAddress?.toLowerCase();
