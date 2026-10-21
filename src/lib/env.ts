@@ -39,10 +39,11 @@ export const env = {
   get ingestSecret() {
     return process.env.INGEST_SECRET || null;
   },
-  get anthropicModel() {
-    return process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+  /** OpenAI model used for email analysis, AI summaries and the analyst. */
+  get aiModel() {
+    return process.env.OPENAI_MODEL || "gpt-6.1-sol";
   },
-  get hasAnthropic() {
-    return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  get hasAI() {
+    return Boolean(process.env.OPENAI_API_KEY);
   },
 };

@@ -1,8 +1,8 @@
 # CRM Intel: competitor email intelligence
 
-You sign up to competitor brands (mystery box and card-rip operators to start: Crown Rips, Packz, Courtyard) with a research Gmail account. The app then reads that inbox read-only, keeps only emails from the brands you track, and runs each one through Claude. Claude classifies the email, extracts its offers, analyzes the marketing, and groups related emails into campaigns. The results feed a dashboard, a competitor comparison, a marketing calendar, lifecycle journeys and an AI analyst you can ask questions.
+You sign up to competitor brands (mystery box and card-rip operators to start: Crown Rips, Packz, Courtyard) with a research Gmail account. The app then reads that inbox read-only, keeps only emails from the brands you track, and runs each one through OpenAI. The AI classifies the email, extracts its offers, analyzes the marketing, and groups related emails into campaigns. The results feed a dashboard, a competitor comparison, a marketing calendar, lifecycle journeys and an AI analyst you can ask questions.
 
-**Stack:** Next.js 16 (App Router), Tailwind CSS 4, pnpm, Supabase (Postgres), Gmail API (read-only), Claude API.
+**Stack:** Next.js 16 (App Router), Tailwind CSS 4, pnpm, Supabase (Postgres), Gmail API (read-only), OpenAI API.
 
 ## How it works
 
@@ -64,13 +64,13 @@ OAuth clients and mailboxes are managed in the app (**Settings**), so you can us
 
 Add as many mailboxes as you like, for example one per persona. Each mailbox can be edited, paused, reconnected, re-synced or deleted. Deleting a mailbox keeps the emails already collected from it. `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars still work as a fallback client.
 
-### 4. Claude
+### 4. OpenAI
 
-Set `ANTHROPIC_API_KEY`. Without it the app still ingests emails, but it falls back to simple keyword rules: no offer extraction, no AI analyst.
+Set `OPENAI_API_KEY`. Without it the app still ingests emails, but it falls back to simple keyword rules: no offer extraction, no AI analyst.
 
-- **Model:** the default is `claude-opus-5-5`; override it with `ANTHROPIC_MODEL`.
+- **Model:** the default is `gpt-6.1-sol`; override it with `OPENAI_MODEL`, e.g. `gpt-6-luna` for lower cost or `gpt-6-astra` for maximum quality.
+- **Structured outputs:** every email analysis uses a strict JSON schema, so results always land in the database fields.
 - **Images:** the 3 largest content images of each email are sent along so offers that only appear in images still get read. Set `ANALYZE_IMAGES=false` to turn this off.
-- **Fallback:** requests use server-side fallback (`fallbacks: "default"`). If the model declines a request, the API retries it on Anthropic's recommended fallback model.
 
 ### 5. Run
 

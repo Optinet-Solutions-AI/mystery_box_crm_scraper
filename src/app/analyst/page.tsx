@@ -5,7 +5,7 @@ import { AnalystChat } from "./chat";
 
 export default async function AnalystPage() {
   await connection();
-  const enabled = env.hasAnthropic;
+  const enabled = env.hasAI;
   return (
     <div>
       <PageHeader
@@ -14,7 +14,7 @@ export default async function AnalystPage() {
       />
       {!enabled && (
         <div className="mb-4 rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink-2">
-          The analyst is turned off because <code>ANTHROPIC_API_KEY</code> is not set. Add it to your environment and restart the app.
+          The analyst is turned off because <code>OPENAI_API_KEY</code> is not set. Add it to your environment and restart the app.
         </div>
       )}
       <AnalystChat enabled={enabled} />

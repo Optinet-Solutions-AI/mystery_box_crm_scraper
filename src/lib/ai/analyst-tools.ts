@@ -1,5 +1,5 @@
 import "server-only";
-import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { defineTool } from "./client";
 import { z } from "zod";
 import { categoriesOf, EMAIL_LIGHT_COLUMNS, loadDataset, parseFilters, previousPeriod, type EmailLight } from "../data";
 import { lifecycleForAI, loadLifecycles } from "../lifecycle";
@@ -118,7 +118,7 @@ function offerBrief(o: Offer, brandName: Map<string, string>, email?: { subject:
 }
 
 export const analystTools = [
-  betaZodTool({
+  defineTool({
     name: "list_brands",
     description: "List tracked competitor brands with ids, industry, country, test accounts and email counts. Call this first to resolve brand names.",
     inputSchema: z.object({}),
@@ -145,7 +145,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "brand_metrics",
     description:
       "CRM activity metrics and 0-100 scorecard per brand for a date range, with the same metrics for the previous period of equal length. Use for volume, cadence, timing, offer types, advertised values, content style, lifecycle coverage and scores.",
@@ -180,7 +180,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "search_offers",
     description:
       "Search structured offers extracted from promotional emails (type, advertised value, requirements, caps, codes, eligibility, expiry, evidence). Returns offer, email and campaign ids.",
@@ -230,7 +230,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "search_campaigns",
     description: "Search inferred campaigns (groups of related promotional emails). Campaigns are inferred by the system, not confirmed by the brand. Returns campaign ids.",
     inputSchema: z.object({
@@ -277,7 +277,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "search_emails",
     description:
       "Search collected emails by brand, category, type, date and text (subject, preview, AI summary, campaign theme). Returns ids, subject, date, categories and AI summary - never full bodies.",
@@ -337,7 +337,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "lifecycle",
     description:
       "Observed CRM journey for test accounts from their signup time: time to first/welcome email, email counts by stage, first offer, cadence, incentives by stage, weekly frequency, recorded manual actions, and the email timeline (with ids). Observed behavior for one test account, not a guaranteed sequence.",
@@ -359,7 +359,7 @@ export const analystTools = [
     },
   }),
 
-  betaZodTool({
+  defineTool({
     name: "compare_periods",
     description:
       "Change detection: compares the latest N days with the N days before for each brand - promo volume, campaigns launched, new/dropped offer types and categories, advertised value changes, with ids of new campaigns.",

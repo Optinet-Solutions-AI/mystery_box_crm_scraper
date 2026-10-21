@@ -31,7 +31,7 @@ export async function processEmail(emailId: string, opts: { force?: boolean } = 
     const brand = must(await sb.from("brands").select("*").eq("id", email.brand_id).single(), "load brand") as Brand;
     const industry = (await sb.from("industries").select("*").eq("id", brand.industry_id).maybeSingle()).data as Industry | null;
 
-    const usedAI = env.hasAnthropic;
+    const usedAI = env.hasAI;
     const a: AnalysisResult = usedAI ? await analyzeEmailWithAI(email, brand, industry) : analyzeEmailHeuristically(email);
 
     // Keep any manual category correction across re-analysis.
@@ -41,7 +41,7 @@ export async function processEmail(emailId: string, opts: { force?: boolean } = 
     must(
       await sb.from("email_analyses").upsert({
         email_id: emailId,
-        model: usedAI ? env.anthropicModel : "heuristic",
+        model: usedAI ? env.aiModel : "heuristic",
         ...fields,
         emoji_count: Math.round(fields.emoji_count),
         cta_count: Math.round(fields.cta_count),

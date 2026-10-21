@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
   // AI summary of the last 30 days, at most once a day.
   try {
-    if (env.hasAnthropic) {
+    if (env.hasAI) {
       const last = (await supabaseAdmin().from("insights").select("created_at").eq("kind", "ai_finding").order("created_at", { ascending: false }).limit(1)).data?.[0];
       if (!last || Date.now() - new Date(last.created_at).getTime() > 20 * 3_600_000) {
         result.aiSummary = (await generateAiSummary(parseFilters({}))).findings.length;

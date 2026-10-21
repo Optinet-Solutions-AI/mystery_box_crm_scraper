@@ -1,12 +1,11 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import OpenAI from "openai";
 import { z } from "zod";
 import { CATEGORIES, EMAIL_TYPES, INCENTIVE_UNITS, OFFER_TYPES } from "../constants";
 import { env } from "../env";
 import { htmlToAnnotatedText } from "../email/parse";
 import type { Brand, Email, Industry } from "../types";
-import { anthropic, FALLBACK_PARAMS } from "./client";
+import { AIRefusedError, parseStructured } from "./client";
 
 const nullableText = (d: string) => z.string().nullable().describe(d);
 
@@ -89,7 +88,7 @@ function isAnalyzableImage(src: string) {
   return /^https:\/\//i.test(src) && !/\.svg(\?|$)/i.test(src);
 }
 
-function buildUserContent(email: Email, brand: Brand, industry: Industry | null, withImages: boolean): Anthropic.Beta.BetaContentBlockParam[] {
+function buildUserContent(email: Email, brand: Brand, industry: Industry | null, withImages: boolean): OpenAI.Responses.ResponseInputMessageContentList {
   const body = email.html_body ? htmlToAnnotatedText(email.html_body) : (email.text_body ?? "");
   const ctas = email.links.filter((l) => l.kind === "cta").map((l) => `- ${l.text} -> ${l.url}`).join("\n");
   const contentImages = email.images.filter((i) => !i.is_tracking);
@@ -127,46 +126,39 @@ ${imageList || "(none)"}
 Body (links shown in [brackets], images as [image: alt]):
 ${body}`;
 
-  const blocks: Anthropic.Beta.BetaContentBlockParam[] = [];
+  const blocks: OpenAI.Responses.ResponseInputMessageContentList = [];
   if (withImages) {
     // The largest content images often carry the offer itself (image-heavy emails).
     const hero = [...contentImages]
       .filter((i) => isAnalyzableImage(i.src))
       .sort((a, b) => (b.width ?? 300) * (b.height ?? 200) - (a.width ?? 300) * (a.height ?? 200))
       .slice(0, 3);
-    for (const img of hero) blocks.push({ type: "image", source: { type: "url", url: img.src } });
+    for (const img of hero) blocks.push({ type: "input_image", image_url: img.src, detail: "auto" });
   }
-  blocks.push({ type: "text", text });
+  blocks.push({ type: "input_text", text });
   return blocks;
 }
 
-export class AnalysisRefusedError extends Error {}
+export { AIRefusedError as AnalysisRefusedError };
 
 export async function analyzeEmailWithAI(email: Email, brand: Brand, industry: Industry | null): Promise<AnalysisResult> {
   const withImages = process.env.ANALYZE_IMAGES !== "false";
   const run = (images: boolean) =>
-    anthropic().beta.messages.parse({
-      model: env.anthropicModel,
-      max_tokens: 16000,
-      ...FALLBACK_PARAMS,
-      output_config: { effort: "low", format: betaZodOutputFormat(AnalysisSchema) },
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: buildUserContent(email, brand, industry, images) }],
+    parseStructured({
+      schema: AnalysisSchema,
+      name: "email_analysis",
+      instructions: SYSTEM_PROMPT,
+      content: buildUserContent(email, brand, industry, images),
+      effort: "low",
+      model: env.aiModel,
     });
-
-  let response;
   try {
-    response = await run(withImages);
+    return await run(withImages);
   } catch (err) {
-    // A remote image that can't be fetched fails the whole request: retry text-only.
-    if (withImages && err instanceof Anthropic.BadRequestError) response = await run(false);
-    else throw err;
+    // A remote image that can't be downloaded fails the whole request: retry text-only.
+    if (withImages && err instanceof OpenAI.BadRequestError) return run(false);
+    throw err;
   }
-
-  if (response.stop_reason === "refusal") throw new AnalysisRefusedError("The model declined to analyze this email.");
-  if (response.stop_reason === "max_tokens") throw new Error("Analysis was cut off (max_tokens).");
-  if (!response.parsed_output) throw new Error("Analysis returned no structured output.");
-  return response.parsed_output;
 }
 
 // ─── Heuristic fallback (no API key configured) ────────────────────────

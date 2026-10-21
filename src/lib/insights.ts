@@ -1,7 +1,6 @@
 import "server-only";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { anthropic, FALLBACK_PARAMS } from "./ai/client";
+import { parseStructured } from "./ai/client";
 import { recordInsight } from "./alerts";
 import { label } from "./constants";
 import { categoriesOf, fetchAll, loadDataset, previousPeriod, type Filters } from "./data";
@@ -144,7 +143,7 @@ Rules:
 - Return between 0 and 7 findings, most important first. If there is little data, return fewer.`;
 
 export async function generateAiSummary(filters: Filters): Promise<{ findings: AiFinding[] }> {
-  if (!env.hasAnthropic) return { findings: [] };
+  if (!env.hasAI) return { findings: [] };
   const [cur, prev] = await Promise.all([loadDataset(filters), loadDataset(previousPeriod(filters))]);
   if (cur.promoEmails.length === 0) return { findings: [] };
 
@@ -215,18 +214,15 @@ export async function generateAiSummary(filters: Filters): Promise<{ findings: A
       })),
   };
 
-  const response = await anthropic().beta.messages.parse({
-    model: env.anthropicModel,
-    max_tokens: 16000,
-    ...FALLBACK_PARAMS,
-    output_config: { effort: "medium", format: betaZodOutputFormat(FindingsSchema) },
-    system: SUMMARY_SYSTEM,
-    messages: [{ role: "user", content: `Digest (JSON):\n${JSON.stringify(digest)}` }],
+  const parsed = await parseStructured({
+    schema: FindingsSchema,
+    name: "intelligence_findings",
+    instructions: SUMMARY_SYSTEM,
+    content: `Digest (JSON):
+${JSON.stringify(digest)}`,
+    effort: "medium",
+    model: env.aiModel,
   });
-  if (response.stop_reason === "refusal") throw new Error("The model declined to generate the summary.");
-  if (response.stop_reason === "max_tokens") throw new Error("Summary was cut off (max_tokens).");
-  const parsed = response.parsed_output;
-  if (!parsed) throw new Error("Summary returned no structured output.");
 
   // Keep only evidence that exists in the digest; drop unsupported findings.
   const emailIds = new Set(digest.emails.map((e) => e.id).concat(digest.offers.map((o) => o.email_id)));
@@ -251,7 +247,7 @@ export async function generateAiSummary(filters: Filters): Promise<{ findings: A
       dedupe_key: `ai_finding:${periodKey}:${f.title.toLowerCase().slice(0, 80)}`,
       period_start: filters.from.toISOString(),
       period_end: filters.to.toISOString(),
-      data: { model: env.anthropicModel },
+      data: { model: env.aiModel },
     });
   }
   return { findings };

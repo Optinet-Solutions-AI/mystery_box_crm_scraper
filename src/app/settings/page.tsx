@@ -297,7 +297,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <Card title="AI processing">
             <DefList
               items={[
-                ["Model", env.hasAnthropic ? env.anthropicModel : <Badge key="m" tone="warn">! No ANTHROPIC_API_KEY — using basic keyword rules</Badge>],
+                ["Model", env.hasAI ? env.aiModel : <Badge key="m" tone="warn">! No OPENAI_API_KEY — using basic keyword rules</Badge>],
                 ["Queued", queue.pending ?? 0],
                 ["Analyzed", queue.analyzed ?? 0],
                 ["Failed", queue.error ?? 0],

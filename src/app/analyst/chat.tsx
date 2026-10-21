@@ -129,7 +129,7 @@ export function AnalystChat({ enabled }: { enabled: boolean }) {
           }}
           rows={2}
           disabled={!enabled}
-          placeholder={enabled ? "Ask a question about your competitors…" : "Set ANTHROPIC_API_KEY to enable the analyst"}
+          placeholder={enabled ? "Ask a question about your competitors…" : "Set OPENAI_API_KEY to enable the analyst"}
           className="min-h-[44px] flex-1 resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none"
         />
         {messages.length > 0 && (

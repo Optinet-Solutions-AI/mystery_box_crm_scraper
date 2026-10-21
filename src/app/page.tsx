@@ -186,7 +186,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           {findings.length === 0 ? (
             <p className="text-sm text-muted">
               No findings yet. Press <span className="font-medium text-ink-2">Generate summary</span> to analyze this period
-              {" "}(needs an Anthropic API key).
+              {" "}(needs an OpenAI API key).
             </p>
           ) : (
             <ul className="space-y-4">

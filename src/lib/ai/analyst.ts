@@ -1,7 +1,8 @@
 import "server-only";
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
+import { z } from "zod";
 import { env } from "../env";
-import { anthropic, FALLBACK_PARAMS } from "./client";
+import { openai } from "./client";
 import { analystTools } from "./analyst-tools";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -29,45 +30,86 @@ Rules:
 
 export class AnalystError extends Error {}
 
+const MAX_ROUNDS = 10;
+
+function jsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const out = z.toJSONSchema(schema, { target: "draft-7", io: "input" }) as Record<string, unknown>;
+  delete out.$schema;
+  return out;
+}
+
+/** Function-tool definitions in the Responses API shape (JSON schema from each Zod schema). */
+const toolDefs: OpenAI.Responses.FunctionTool[] = analystTools.map((t) => ({
+  type: "function",
+  name: t.name,
+  description: t.description,
+  parameters: jsonSchema(t.inputSchema),
+  strict: false, // inputs are validated with Zod below
+}));
+
+async function runTool(call: OpenAI.Responses.ResponseFunctionToolCall): Promise<string> {
+  const tool = analystTools.find((t) => t.name === call.name);
+  if (!tool) return JSON.stringify({ error: `Unknown tool ${call.name}` });
+  let args: unknown;
+  try {
+    args = call.arguments ? JSON.parse(call.arguments) : {};
+  } catch {
+    return JSON.stringify({ error: "Arguments were not valid JSON. Try again." });
+  }
+  const parsed = tool.inputSchema.safeParse(args);
+  if (!parsed.success) return JSON.stringify({ error: "Invalid arguments", issues: parsed.error.issues.slice(0, 5) });
+  try {
+    const result = await (tool.run as (input: unknown) => unknown)(parsed.data);
+    return JSON.stringify(result);
+  } catch (err) {
+    return JSON.stringify({ error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 /** Runs the analyst agent over the conversation and returns the final Markdown answer. */
 export async function runAnalyst(history: ChatTurn[]): Promise<string> {
   const today = new Date();
   const dateLine = `Current date: ${today.toISOString().slice(0, 10)} (${today.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}, UTC).`;
 
-  const messages: Anthropic.Beta.BetaMessageParam[] = history.map((t, i) =>
+  let input: OpenAI.Responses.ResponseInput = history.map((t, i) =>
     i === history.length - 1 && t.role === "user"
-      ? { role: "user", content: `${dateLine}\n\n${t.content}` }
+      ? { role: "user" as const, content: `${dateLine}
+
+${t.content}` }
       : { role: t.role, content: t.content },
   );
+  let previousId: string | undefined;
 
-  const runner = anthropic().beta.messages.toolRunner({
-    model: env.anthropicModel,
-    max_tokens: 16000,
-    ...FALLBACK_PARAMS,
-    output_config: { effort: "medium" },
-    cache_control: { type: "ephemeral" },
-    system: SYSTEM_PROMPT,
-    tools: analystTools,
-    messages,
-    max_iterations: 10,
-  });
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const response = await openai().responses.create({
+      model: env.aiModel,
+      instructions: SYSTEM_PROMPT,
+      input,
+      tools: toolDefs,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 16000,
+      ...(previousId ? { previous_response_id: previousId } : {}),
+    });
+    previousId = response.id;
 
-  const final = await runner.runUntilDone();
+    const refusal = response.output.flatMap((o) => (o.type === "message" ? o.content : [])).find((c) => c.type === "refusal");
+    if (refusal) throw new AnalystError("The analyst declined to answer this request. Try rephrasing the question around the tracked competitor data.");
 
-  if (final.stop_reason === "refusal") {
-    throw new AnalystError("The analyst declined to answer this request. Try rephrasing the question around the tracked competitor data.");
-  }
-  const text = final.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n\n")
-    .trim();
-  if (!text) {
-    if (final.stop_reason === "tool_use") {
-      throw new AnalystError("The question needed more lookups than allowed in one answer. Try narrowing it to fewer brands or a shorter period.");
+    const calls = response.output.filter((o): o is OpenAI.Responses.ResponseFunctionToolCall => o.type === "function_call");
+    if (calls.length === 0) {
+      const text = response.output_text.trim();
+      if (!text) {
+        if (response.status === "incomplete") throw new AnalystError("The answer was cut off. Try asking for a shorter summary.");
+        throw new AnalystError("The analyst returned an empty answer. Please try again.");
+      }
+      return response.status === "incomplete" ? `${text}
+
+_(Answer was cut off - ask a narrower question for the rest.)_` : text;
     }
-    if (final.stop_reason === "max_tokens") throw new AnalystError("The answer was cut off. Try asking for a shorter summary.");
-    throw new AnalystError("The analyst returned an empty answer. Please try again.");
+
+    // Run this round's tool calls in parallel and send all results back together.
+    const outputs = await Promise.all(calls.map(async (c) => ({ type: "function_call_output" as const, call_id: c.call_id, output: await runTool(c) })));
+    input = outputs;
   }
-  return final.stop_reason === "max_tokens" ? `${text}\n\n_(Answer was cut off - ask a narrower question for the rest.)_` : text;
+  throw new AnalystError("The question needed more lookups than allowed in one answer. Try narrowing it to fewer brands or a shorter period.");
 }
