@@ -7,6 +7,7 @@ import { parseRawEmail } from "../email/parse";
 import { ingestParsedEmail, loadBrandsAndAccounts } from "../email/ingest";
 import { gmailQueryForBrands, matchBrand } from "../email/match";
 import { gmailFor, ReauthRequiredError, withRetry } from "./client";
+import { observationFrom, recordObservations, scanInboxForSignups, triageCandidates, type Observation } from "../discovery";
 
 export type SyncKind = "initial" | "incremental" | "manual" | "push" | "brand_backfill";
 export type SyncStats = { fetched: number; inserted: number; duplicates: number; ignored: number; done: boolean };
@@ -136,10 +137,11 @@ async function historyIngest(
   const todo = ids.filter((id) => !have.has(id));
 
   // Look at headers first so personal mail is never downloaded in full.
+  const unknownSenders: Observation[] = [];
   await mapLimit(todo, CONCURRENCY, async (id) => {
     if (Date.now() > deadline) return;
     const meta = await withRetry(() =>
-      g.users.messages.get({ userId: "me", id, format: "metadata", metadataHeaders: ["From", "Reply-To", "List-Unsubscribe"] }),
+      g.users.messages.get({ userId: "me", id, format: "metadata", metadataHeaders: ["From", "Reply-To", "List-Unsubscribe", "Subject"] }),
     );
     const hdr = (n: string) => meta.data.payload?.headers?.find((h) => h.name?.toLowerCase() === n.toLowerCase())?.value ?? null;
     const fromRaw = hdr("From") ?? "";
@@ -154,10 +156,13 @@ async function historyIngest(
       links: [],
       listUnsubscribe: null,
     });
+    if (!quick) unknownSenders.push(observationFrom(meta.data));
     // Bulk mail from an unknown sender might still be a tracked brand using an ESP: check the body.
     if (quick || listUnsubscribe) await fetchAndIngest(g, mailbox, id, ctx, stats);
     else stats.ignored++;
   });
+  // Untracked senders become signup candidates (headers only) for a person to confirm.
+  await recordObservations(mailbox, ctx.brands, unknownSenders).catch(() => 0);
   stats.done = Date.now() <= deadline;
   return { ok: true, historyId: stats.done ? latest : mailbox.history_id };
 }
@@ -212,6 +217,10 @@ export async function syncMailbox(mailboxId: string, kind: SyncKind = "increment
       const after = new Date(Date.now() - initial_sync_days * 86_400_000);
       await queryIngest(g, mailbox, gmailQueryForBrands(ctx.brands, after), ctx, stats, deadline);
       nextHistoryId = mailbox.history_id ?? profileHistoryId;
+      // Find operators signed up to outside the tool.
+      if (Date.now() < deadline - 20_000) {
+        await scanInboxForSignups(g, mailbox, ctx.brands, { days: Math.min(initial_sync_days, 60), deadline: deadline - 5_000 }).catch(() => null);
+      }
     } else {
       const res = await historyIngest(g, mailbox, ctx, stats, deadline);
       if (res.ok) {
@@ -235,6 +244,7 @@ export async function syncMailbox(mailboxId: string, kind: SyncKind = "increment
       })
       .eq("id", mailbox.id);
     await finishRun(runId, stats);
+    await triageCandidates(5).catch(() => 0);
     return stats;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

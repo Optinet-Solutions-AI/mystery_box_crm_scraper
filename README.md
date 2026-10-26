@@ -18,6 +18,17 @@ You sign up to competitor brands (mystery box and card-rip operators to start: C
 
 Personal mail is never stored. The incremental sync reads headers first and only downloads emails that could belong to a tracked brand.
 
+## Signing up outside the tool
+
+You don't have to add a brand first. Sign up to any operator directly on its website with the research Gmail:
+
+1. Each sync looks at the headers of new emails, never the bodies, to spot senders that aren't tracked yet. Only automated mail (an unsubscribe header, a no-reply/hello/news sender) or signup-looking subjects count. Personal mail and big platforms (Google, Microsoft and similar) are skipped.
+2. The AI checks each new sender and flags the ones that look like a mystery box, rips or cards operator.
+3. They appear under **Brands → Detected signups**. **Confirm & track** creates the brand and a test account; day 0 is the first welcome email. It then pulls in and analyzes the brand's past emails. **Dismiss** hides the sender for good.
+4. Only confirmed brands appear on the dashboards. **Scan inbox now** checks the last 60 days right away.
+
+If a tracked brand emails the inbox before it has a test account, one is created automatically, starting from its earliest email.
+
 ## Pages
 
 | Page | What it shows |

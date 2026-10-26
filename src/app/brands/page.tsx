@@ -6,24 +6,32 @@ import type { Brand, Industry, TestAccount } from "@/lib/types";
 import { Badge, BrandChip, buttonClass, Card, EmptyState, Field, inputClass, PageHeader, Table } from "@/components/ui";
 import { createBrand } from "./actions";
 import { SignupButton } from "./signup-button";
+import { DetectedSignups, type Candidate } from "./detected-signups";
+
+// Confirming a detected signup backfills its emails in the background.
+export const maxDuration = 300;
 
 export default async function BrandsPage() {
   const sb = await db();
-  const [brands, industries, accounts, counts] = await Promise.all([
+  const [brands, industries, accounts, counts, candidates, mailboxCount] = await Promise.all([
     sb.from("brands").select("*").order("created_at").then((r) => must(r) as Brand[]),
     sb.from("industries").select("*").order("name").then((r) => must(r) as Industry[]),
     sb.from("test_accounts").select("*").then((r) => must(r) as TestAccount[]),
     sb.from("emails").select("brand_id, sent_at, is_promotional").order("sent_at", { ascending: false }).limit(5000).then((r) => (r.data ?? []) as { brand_id: string; sent_at: string; is_promotional: boolean | null }[]),
+    sb.from("brand_candidates").select("*").neq("status", "confirmed").order("signup_detected_at", { ascending: false, nullsFirst: false }).limit(100).then((r) => (r.data ?? []) as Candidate[]),
+    sb.from("mailboxes").select("id", { count: "exact", head: true }).eq("provider", "gmail").not("refresh_token", "is", null).then((r) => r.count ?? 0),
   ]);
 
   return (
     <>
       <PageHeader
         title="Brands"
-        description="Competitors you track. Add a brand, open its signup page to create a test account with the research Gmail, and the agent picks up every email it sends from then on."
+        description="Competitors you track. Sign up to any operator with the research Gmail — here or directly on their site — and confirm it under Detected signups. Only confirmed brands appear on the dashboards."
       />
 
-      <Card title="Add a brand" className="mb-6">
+      <DetectedSignups candidates={candidates} brands={brands} industries={industries} hasMailbox={mailboxCount > 0} />
+
+      <Card title="Add a brand manually" className="mb-6">
         <form action={createBrand} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
           <Field label="Website domain">
             <input name="domain" required placeholder="brandname.com" className={inputClass} />

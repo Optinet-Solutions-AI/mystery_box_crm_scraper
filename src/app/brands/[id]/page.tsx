@@ -65,6 +65,11 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
         }
       />
 
+      {sp.confirmed === "1" && (
+        <div className="mb-6 rounded-xl border border-good/30 bg-good/10 p-4 text-sm text-ink">
+          Signup confirmed — this brand is now tracked. Its past emails are being pulled in and analyzed in the background; refresh in a minute or two.
+        </div>
+      )}
       {sp.new === "1" && (
         <div className="mb-6 rounded-xl border border-accent/30 bg-accent/10 p-4 text-sm text-ink">
           Brand added. Next: click <b>Open signup window</b>, sign up with the research Google account, then confirm the registration below.

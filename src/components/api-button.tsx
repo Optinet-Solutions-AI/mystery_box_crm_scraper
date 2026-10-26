@@ -19,7 +19,7 @@ export function ApiButton({
   primary?: boolean;
   confirm?: string;
   /** How to summarize the JSON response ("sync" understands sync/process results). */
-  describe?: "sync" | "plain";
+  describe?: "sync" | "discover" | "plain";
 }) {
   const router = useRouter();
   const [state, setState] = useState<{ busy: boolean; msg: string | null; error: boolean }>({ busy: false, msg: null, error: false });
@@ -31,7 +31,7 @@ export function ApiButton({
       const res = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
       const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok || json.ok === false) throw new Error(String(json.error ?? `Request failed (${res.status})`));
-      setState({ busy: false, msg: describe === "sync" ? describeSync(json) : "Done", error: false });
+      setState({ busy: false, msg: describe === "sync" ? describeSync(json) : describe === "discover" ? `Checked ${json.scanned ?? 0} emails · ${json.created ?? 0} new senders · ${json.triaged ?? 0} reviewed` : "Done", error: false });
       router.refresh();
     } catch (err) {
       setState({ busy: false, msg: err instanceof Error ? err.message : String(err), error: true });

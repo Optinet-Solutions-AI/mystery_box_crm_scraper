@@ -58,10 +58,29 @@ export async function ingestParsedEmail(
 
   const toEmail = parsed.toEmail?.toLowerCase() ?? null;
   const brandAccounts = accounts.filter((a) => a.brand_id === match.brand.id);
-  const account =
+  let account =
     brandAccounts.find((a) => a.email.toLowerCase() === toEmail) ??
     brandAccounts.find((a) => a.mailbox_id && a.mailbox_id === ctx.mailboxId) ??
     null;
+
+  // Signed up outside the tool: create the test account from the first email we see.
+  const sentAt = parsed.sentAt ?? ctx.receivedAt ?? null;
+  if (!account && toEmail && ctx.mailboxId) {
+    const created = await sb
+      .from("test_accounts")
+      .upsert(
+        { brand_id: match.brand.id, mailbox_id: ctx.mailboxId, email: toEmail, persona: "default", status: "registered", registered_at: sentAt, signup_method: "detected", notes: "Detected from the first email received (signed up outside the tool)." },
+        { onConflict: "brand_id,email,persona", ignoreDuplicates: true },
+      )
+      .select("*");
+    account = (created.data?.[0] as TestAccount | undefined) ?? null;
+    if (account) accounts.push(account);
+  }
+  // Detected accounts start at the earliest email seen (backfills arrive newest-first).
+  if (account && account.signup_method === "detected" && sentAt && (!account.registered_at || new Date(sentAt) < new Date(account.registered_at))) {
+    await sb.from("test_accounts").update({ registered_at: sentAt }).eq("id", account.id);
+    account.registered_at = sentAt;
+  }
 
   const row = {
     dedupe_key: key,
