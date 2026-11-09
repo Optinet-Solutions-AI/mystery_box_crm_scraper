@@ -1,0 +1,28 @@
+# Runs the inbox sync every 10 minutes (Vercel's free plan only allows daily crons).
+# Needs one repository secret: CRON_SECRET (same value as in Vercel / .env).
+name: Inbox sync
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: inbox-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Call /api/cron/sync
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://mystery-box-crm-scraper.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET repository secret is not set"; exit 1; fi
+          status=$(curl -sS -o response.json -w "%{http_code}" --max-time 320 \
+            -H "Authorization: Bearer $CRON_SECRET" "${APP_URL%/}/api/cron/sync")
+          head -c 2000 response.json; echo
+          [ "$status" = "200" ] || { echo "Sync returned HTTP $status"; exit 1; }

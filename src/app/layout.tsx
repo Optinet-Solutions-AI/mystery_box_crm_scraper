@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { MobileNav, Sidebar } from "@/components/sidebar";
 import { Loading } from "@/components/ui";
+import { MailboxAlert } from "@/components/mailbox-alert";
 
 export const metadata: Metadata = {
   title: "CRM Intel",
@@ -22,6 +23,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <MobileNav />
             </Suspense>
             <main className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+              <Suspense fallback={null}>
+                <MailboxAlert />
+              </Suspense>
               <Suspense fallback={<Loading />}>{children}</Suspense>
             </main>
           </div>

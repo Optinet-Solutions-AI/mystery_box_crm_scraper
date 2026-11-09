@@ -101,7 +101,8 @@ Set `APP_PASSWORD` and `SESSION_SECRET` to put the app behind a team password.
 1. Import the repo into Vercel and add all variables from `.env.example`. Set `APP_URL` to the production URL; a `localhost` value is ignored on Vercel. Add `https://<your-vercel-domain>/api/gmail/callback` as a redirect URI on the Google OAuth client.
 2. **Scheduled sync:** `GET /api/cron/sync` with `Authorization: Bearer $CRON_SECRET` runs incremental sync, then AI analysis, then feed items, plus the AI summary once a day.
    - `vercel.json` schedules it daily because the Vercel Hobby plan only allows daily cron jobs.
-   - For near-real-time, either use Vercel Pro (`*/10 * * * *`), point any scheduler at the URL every 5–15 minutes (Supabase `pg_cron` + `pg_net`, GitHub Actions, cron-job.org), or turn on Gmail push (below).
+   - **Every 10 minutes:** `.github/workflows/sync.yml` calls it from GitHub Actions. Add a repository secret `CRON_SECRET` (GitHub → Settings → Secrets and variables → Actions) with the same value as in Vercel.
+   - Other options for near-real-time: use Vercel Pro (`*/10 * * * *`), point any scheduler at the URL every 5–15 minutes (Supabase `pg_cron` + `pg_net`, GitHub Actions, cron-job.org), or turn on Gmail push (below).
 3. **Gmail push (optional, near-real-time):**
    1. Create a Pub/Sub topic.
    2. Grant `gmail-api-push@system.gserviceaccount.com` the **Publisher** role on it.
