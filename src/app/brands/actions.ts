@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { insertBrand, normalizeDomain } from "@/lib/brands";
+import { researchBrand } from "@/lib/brand-research";
 import { backfillBrand } from "@/lib/gmail/sync";
 import { processPending } from "@/lib/pipeline";
 import { supabaseAdmin, must } from "@/lib/supabase";
@@ -28,6 +29,8 @@ export async function createBrand(formData: FormData) {
     country: str(formData.get("country")),
     senderDomains: list(formData.get("sender_domains")),
   });
+  // Build the brand's background profile in the background.
+  after(() => researchBrand(id).catch(() => null));
   revalidatePath("/brands");
   redirect(`/brands/${id}?new=1`);
 }
@@ -88,7 +91,10 @@ export async function confirmCandidate(candidateId: string, formData: FormData) 
     after(async () => {
       await backfillBrand(mailbox.id, brandId, 365, 200_000).catch(() => null);
       await processPending({ limit: 30, budgetMs: 80_000 }).catch(() => null);
+      if (!existing) await researchBrand(brandId).catch(() => null);
     });
+  } else if (!existing) {
+    after(() => researchBrand(brandId).catch(() => null));
   }
   revalidatePath("/brands");
   redirect(`/brands/${brandId}?confirmed=1`);

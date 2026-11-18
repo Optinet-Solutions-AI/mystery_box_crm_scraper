@@ -26,12 +26,22 @@ export type Observation = {
   isBulk: boolean; // has List-Unsubscribe / automated sender
 };
 
+/** Services that send login codes or mail on behalf of other companies: never a brand's own domain. */
+export const SERVICE_PROVIDER_DOMAINS = [
+  "privy.io", "auth0.com", "magic.link", "stytch.com", "clerk.dev", "clerk.com", "firebaseapp.com", "web3auth.io",
+  "dynamic.xyz", "thirdweb.com", "sendgrid.net", "mailgun.org", "mailgun.net", "amazonses.com", "mandrillapp.com",
+  "mcsv.net", "klaviyomail.com", "customeriomail.com", "sparkpostmail.com", "postmarkapp.com", "intercom-mail.com",
+  "zendesk.com", "stripe.com", "paypal.com", "shopify.com", "myshopify.com", "discord.com", "twitch.tv",
+];
+
 // Personal mailbox providers and big platforms: never candidates.
 const IGNORED_DOMAINS = new Set([
   "gmail.com", "googlemail.com", "google.com", "youtube.com", "yahoo.com", "ymail.com", "outlook.com", "hotmail.com",
   "live.com", "msn.com", "microsoft.com", "icloud.com", "me.com", "mac.com", "apple.com", "aol.com", "proton.me",
   "protonmail.com", "gmx.com", "gmx.net", "mail.com", "yandex.com", "zoho.com", "fastmail.com", "hey.com",
   "facebookmail.com", "linkedin.com", "vercel.com", "github.com", "supabase.io", "supabase.com", "openai.com",
+  // Login / wallet / email services that send on behalf of many brands.
+  ...SERVICE_PROVIDER_DOMAINS,
 ]);
 
 const TWO_PART_TLDS = /\.(co|com|net|org|gov|ac|edu)\.[a-z]{2}$/;

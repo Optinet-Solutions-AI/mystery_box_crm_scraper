@@ -29,6 +29,16 @@ You don't have to add a brand first. Sign up to any operator directly on its web
 
 If a tracked brand emails the inbox before it has a test account, one is created automatically, starting from its earliest email.
 
+## Brand profiles
+
+Every tracked brand gets a profile at **Brands → (brand)**, filled in three ways:
+
+- **AI web research:** what the brand does, when it went live, founders, headquarters, operating company, what it's built on, payments, markets, licensing and funding. Every claim links to its source, and anything the research can't find stays empty.
+- **Website technology:** detected from the brand's homepage, e.g. Shopify, Next.js, Polygon, Stripe or Privy.
+- **Email / CRM platform:** detected from the emails received, e.g. Klaviyo, Customer.io, Braze or SendGrid.
+
+The profile also shows the brand's email activity for the last 90 days. New and confirmed brands are researched automatically, and the scheduled job refreshes profiles once a month. Use **Refresh research** to re-run it on demand.
+
 ## Pages
 
 | Page | What it shows |

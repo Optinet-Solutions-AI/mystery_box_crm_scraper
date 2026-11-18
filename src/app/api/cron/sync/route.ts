@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { generateAiSummary, generatePeriodicInsights } from "@/lib/insights";
 import { supabaseAdmin } from "@/lib/supabase";
 import { processPending } from "@/lib/pipeline";
+import { researchMissingProfiles } from "@/lib/brand-research";
 
 export const maxDuration = 300;
 
@@ -16,6 +17,7 @@ export const maxDuration = 300;
  */
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const started = Date.now();
   const result: Record<string, unknown> = {};
   try {
     result.sync = await syncAllMailboxes("incremental", 120_000);
@@ -42,6 +44,12 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     result.aiSummaryError = err instanceof Error ? err.message : String(err);
+  }
+  // Brand profiles: research new brands / refresh month-old ones, if time is left.
+  try {
+    if (Date.now() - started < 150_000) result.profiles = await researchMissingProfiles(1);
+  } catch (err) {
+    result.profilesError = err instanceof Error ? err.message : String(err);
   }
   return NextResponse.json(result);
 }

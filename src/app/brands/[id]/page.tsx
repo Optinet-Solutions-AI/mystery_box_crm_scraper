@@ -9,6 +9,7 @@ import { LocalDateTimeInput } from "@/components/local-datetime";
 import { Badge, buttonClass, Card, CategoryBadge, EmptyState, Field, inputClass, PageHeader, secondaryButtonClass, Table } from "@/components/ui";
 import { deleteBrand, deleteTestAccount, registerTestAccount, updateBrand, updateTestAccount } from "../actions";
 import { SignupButton } from "../signup-button";
+import { BrandProfile } from "./brand-profile";
 
 type EmailListRow = { id: string; subject: string | null; sent_at: string | null; email_type: string | null; is_promotional: boolean | null; processing_status: string; campaign_id: string | null; to_email: string | null };
 
@@ -75,6 +76,8 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
           Brand added. Next: click <b>Open signup window</b>, sign up with the research Google account, then confirm the registration below.
         </div>
       )}
+
+      <BrandProfile brand={brand} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
