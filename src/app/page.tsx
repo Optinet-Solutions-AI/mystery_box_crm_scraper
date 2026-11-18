@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
@@ -16,6 +17,8 @@ import type { Insight } from "@/lib/types";
 const pctDelta = (cur: number, prev: number) => (prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100));
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  // Filters default to "the last N days from now": mark the page as request-time first.
+  await connection();
   const filters = parseFilters(await searchParams);
   const [ds, prev] = await Promise.all([loadDataset(filters), loadDataset(previousPeriod(filters))]);
   const now = new Date();

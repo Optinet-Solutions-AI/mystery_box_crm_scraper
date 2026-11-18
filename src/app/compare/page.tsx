@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { addDays, format } from "date-fns";
@@ -252,6 +253,8 @@ function buildSections(stats: BrandStats[], prevStats: BrandStats[], lifecycle: 
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
+  // Filters default to "the last N days from now": mark the page as request-time first.
+  await connection();
   let filters = parseFilters(sp);
   const sb = await db();
 

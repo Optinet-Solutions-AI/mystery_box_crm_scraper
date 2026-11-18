@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { db } from "@/lib/supabase";
 import { brandColor, fetchAll, parseFilters, scopedBrands, type SearchParams } from "@/lib/data";
@@ -12,6 +13,8 @@ const NS = <span className="text-muted">Not stated</span>;
 
 export default async function OffersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
+  // Filters default to "the last N days from now": mark the page as request-time first.
+  await connection();
   const f = parseFilters(sp);
   const type = typeof sp.type === "string" ? sp.type : "";
   const onlyActive = sp.active === "1";

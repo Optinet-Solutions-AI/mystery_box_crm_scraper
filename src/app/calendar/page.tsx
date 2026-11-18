@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { Suspense } from "react";
 import clsx from "clsx";
@@ -164,6 +165,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   // Promotions advertised in this window may come from emails sent earlier.
   const dataFrom = mode === "promo" ? subDays(windowStart, 60) : windowStart;
+  // Filters default to "the last N days from now": mark the page as request-time first.
+  await connection();
   const base = parseFilters(sp);
   const ds = await loadDataset({ ...base, from: dataFrom, to: windowEnd });
 

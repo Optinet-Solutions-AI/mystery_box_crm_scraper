@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { db, must } from "@/lib/supabase";
 import { brandColor, parseFilters, scopedBrands, type SearchParams } from "@/lib/data";
@@ -14,6 +15,8 @@ function campaignStatus(c: Campaign) {
 }
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  // Filters default to "the last N days from now": mark the page as request-time first.
+  await connection();
   const f = parseFilters(await searchParams);
   const sb = await db();
   const brands = await scopedBrands(sb, f);
