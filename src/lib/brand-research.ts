@@ -190,7 +190,38 @@ Rules:
 - Give the source URL for launch date, headquarters, founders and facts.
 - Good sources: the brand's own site (about, terms, imprint, privacy), LinkedIn, Crunchbase, press, interviews, company registries, Trustpilot, Reddit.
 - Make sure it's the right company: match the domain given. Note any name clashes in caveats.
-- Keep it concise.`;
+- Keep it concise.
+- Never put links or citations inside text fields; put URLs only in the *_source / source_url fields and in sources.`;
+
+const MD_LINK = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g;
+
+const stripTracking = (url: string) => url.replace(/[?&]utm_source=openai\b/, "").replace(/\?$/, "");
+
+/**
+ * Web-search answers sometimes embed citations like "([site.com](https://...))"
+ * inside text. Remove them from the text and collect the URLs as sources.
+ */
+export function cleanCitations<T>(value: T, found: { title: string; url: string }[] = []): T {
+  if (typeof value === "string") {
+    const text = value
+      .replace(/\s*\(\s*\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)\s*\)/g, (_m, title: string, url: string) => {
+        found.push({ title, url: stripTracking(url) });
+        return "";
+      })
+      .replace(MD_LINK, (_m, title: string, url: string) => {
+        found.push({ title, url: stripTracking(url) });
+        return title;
+      })
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return (/^https?:\/\//.test(text) ? stripTracking(text) : text) as T;
+  }
+  if (Array.isArray(value)) return value.map((v) => cleanCitations(v, found)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cleanCitations(v, found)])) as T;
+  }
+  return value;
+}
 
 /** Researches one brand and stores the profile. Safe to call repeatedly (refreshes the profile). */
 export async function researchBrand(brandId: string): Promise<void> {
@@ -238,8 +269,9 @@ export async function researchBrand(brandId: string): Promise<void> {
       max_output_tokens: 20000,
     });
     if (response.status === "incomplete") throw new Error(`Research was cut off (${response.incomplete_details?.reason ?? "incomplete"}).`);
-    const p = response.output_parsed;
-    if (!p) throw new Error("Research returned no structured result.");
+    if (!response.output_parsed) throw new Error("Research returned no structured result.");
+    const inline: { title: string; url: string }[] = [];
+    const p = cleanCitations(response.output_parsed, inline);
 
     // Citations the search attached, added to the model's own source list.
     const cited = response.output
@@ -247,7 +279,7 @@ export async function researchBrand(brandId: string): Promise<void> {
       .flatMap((c) => (c.type === "output_text" ? c.annotations : []))
       .filter((a): a is Extract<typeof a, { type: "url_citation" }> => a.type === "url_citation")
       .map((a) => ({ title: a.title, url: a.url }));
-    const sources = [...p.sources, ...cited].filter((s, i, all) => s.url && all.findIndex((x) => x.url === s.url) === i).slice(0, 25);
+    const sources = [...p.sources, ...inline, ...cited.map((c) => ({ ...c, url: stripTracking(c.url) }))].filter((s, i, all) => s.url && all.findIndex((x) => x.url === s.url) === i).slice(0, 25);
     const social = [...site.social, ...p.social].filter((s, i, all) => all.findIndex((x) => x.url.replace(/\/$/, "") === s.url.replace(/\/$/, "")) === i);
 
     await sb.from("brand_profiles").upsert({
