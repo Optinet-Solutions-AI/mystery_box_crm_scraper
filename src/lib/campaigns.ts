@@ -35,7 +35,14 @@ export function normalizeUrl(url: string): string | null {
 }
 
 const WINDOW_DAYS = 21;
-const ATTACH_THRESHOLD = 0.5;
+const ATTACH_THRESHOLD = 0.55;
+
+/** Words every promotion uses; they say nothing about *which* promotion it is. */
+const GENERIC = new Set(
+  "hour hours day days week weekend weekly month today tonight chase sale deal deals offer offers bonus promo pack packs box boxes rip rips drop drops free off max pull pulls win wins limited time last chance final new back event special exclusive gift gifts reward rewards code discount"
+    .split(" "),
+);
+const distinctive = (s: string | null | undefined) => new Set([...tokens(s)].filter((t) => !GENERIC.has(t) && !/^[$€£]?\d/.test(t)));
 
 type Scored = { campaign: Campaign; score: number; reasons: string[] };
 
@@ -79,6 +86,15 @@ function scoreCampaign(
   if (analysis.seasonal_event && c.seasonal_event && analysis.seasonal_event.toLowerCase() === c.seasonal_event.toLowerCase()) {
     score += 0.1;
     reasons.push("same seasonal event");
+  }
+  // Two promotions with different names (e.g. "Squirtle Squad Chase" vs "Ninetales Chase")
+  // are different campaigns, however similar their generic wording - unless they
+  // share a promo code or landing page.
+  const a = distinctive(analysis.campaign_theme);
+  const b = distinctive(c.title);
+  const sharedHardEvidence = reasons.includes("same promo code") || reasons.includes("same landing page");
+  if (a.size > 0 && b.size > 0 && ![...a].some((t) => b.has(t)) && !sharedHardEvidence) {
+    return { campaign: c, score: 0, reasons: ["different promotion names"] };
   }
   return { campaign: c, score, reasons };
 }

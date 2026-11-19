@@ -49,15 +49,18 @@ export function computeBenchmarks(ds: Dataset, prev: Dataset, stats: BrandStats[
     const cur = byCurrency.get(c);
     if (!cur || Number(o.incentive_value) > Number(cur.incentive_value)) byCurrency.set(c, o);
   }
+  // A missing currency is shown as USD, so the same offer can appear twice: keep each label once.
+  const topMoney = [...byCurrency.values()].filter(
+    (o, i, all) =>
+      all.findIndex((x) => x.brand_id === o.brand_id && fmtMoney(Number(x.incentive_value), x.currency) === fmtMoney(Number(o.incentive_value), o.currency)) === i,
+  );
   out.push(
-    byCurrency.size
+    topMoney.length
       ? {
           question: "Which competitor offers the highest advertised bonus (amount)?",
-          answer: [...byCurrency.values()]
-            .map((o) => `${brandName(ds, o.brand_id)}: ${fmtMoney(Number(o.incentive_value), o.currency)}`)
-            .join(" · "),
-          detail: byCurrency.size > 1 ? "Amounts in different currencies are not converted or compared with each other." : (money[0]?.headline ?? undefined),
-          evidence: [...byCurrency.values()].map((o) => ({ label: `${brandName(ds, o.brand_id)} email`, href: `/emails/${o.email_id}` })),
+          answer: topMoney.map((o) => `${brandName(ds, o.brand_id)}: ${fmtMoney(Number(o.incentive_value), o.currency)}`).join(" · "),
+          detail: topMoney.length > 1 ? "Amounts in different currencies are not converted or compared with each other." : (topMoney[0]?.headline ?? undefined),
+          evidence: topMoney.map((o) => ({ label: `${brandName(ds, o.brand_id)} email`, href: `/emails/${o.email_id}` })),
         }
       : { question: "Which competitor offers the highest advertised bonus (amount)?", answer: "No amount-based offers observed in this period.", evidence: [] },
   );

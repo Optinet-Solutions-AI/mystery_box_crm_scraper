@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { supabaseAdmin, must } from "@/lib/supabase";
 import type { RecordedEvent } from "@/lib/types";
 
@@ -27,6 +27,7 @@ export async function addRecordedEvent(formData: FormData) {
   );
   must(await sb.from("test_accounts").update({ recorded_events: events }).eq("id", accountId).select("id"), "save event");
   revalidatePath("/lifecycle");
+  refresh();
 }
 
 export async function removeRecordedEvent(formData: FormData) {
@@ -41,6 +42,7 @@ export async function removeRecordedEvent(formData: FormData) {
   events.splice(index, 1);
   must(await sb.from("test_accounts").update({ recorded_events: events }).eq("id", accountId).select("id"), "save events");
   revalidatePath("/lifecycle");
+  refresh();
 }
 
 /** Sets or corrects the signup time (lifecycle day 0). */
@@ -57,4 +59,5 @@ export async function updateRegisteredAt(formData: FormData) {
     "update registration",
   );
   revalidatePath("/lifecycle");
+  refresh();
 }

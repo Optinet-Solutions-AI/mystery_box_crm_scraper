@@ -22,7 +22,17 @@ export function SignupButton({ url, brandId, compact }: { url: string; brandId: 
     const top = window.screenY + (window.outerHeight - h) / 2;
     const popup = window.open(url, `signup-${brandId}`, `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
     if (!popup) window.open(url, "_blank");
-    router.push(`/brands/${brandId}?signup=1#register`);
+    router.push(`/brands/${brandId}?signup=1`, { scroll: false });
+    // The form renders after navigation; scroll to it once it's on the page (and highlighted).
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      const el = document.getElementById("register");
+      const highlighted = el?.className.includes("ring-2");
+      if ((el && highlighted) || ++tries > 40) {
+        window.clearInterval(timer);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 150);
   }
 
   return (

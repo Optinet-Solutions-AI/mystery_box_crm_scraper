@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const RULE_TYPES = ["new_campaign", "new_offer", "offer_expiring", "volume_spike", "keyword", "any"] as const;
@@ -8,11 +8,13 @@ const RULE_TYPES = ["new_campaign", "new_offer", "offer_expiring", "volume_spike
 export async function markRead(id: string, read = true) {
   await supabaseAdmin().from("insights").update({ read }).eq("id", id);
   revalidatePath("/feed");
+  refresh();
 }
 
 export async function markAllRead() {
   await supabaseAdmin().from("insights").update({ read: true }).eq("read", false);
   revalidatePath("/feed");
+  refresh();
 }
 
 export async function createRule(formData: FormData) {
@@ -31,14 +33,17 @@ export async function createRule(formData: FormData) {
   }
   await supabaseAdmin().from("alert_rules").insert({ name, rule_type: ruleType, brand_id: brandId, params, webhook_url: webhook });
   revalidatePath("/feed");
+  refresh();
 }
 
 export async function toggleRule(id: string, active: boolean) {
   await supabaseAdmin().from("alert_rules").update({ active }).eq("id", id);
   revalidatePath("/feed");
+  refresh();
 }
 
 export async function deleteRule(id: string) {
   await supabaseAdmin().from("alert_rules").delete().eq("id", id);
   revalidatePath("/feed");
+  refresh();
 }

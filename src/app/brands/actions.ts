@@ -1,7 +1,7 @@
 "use server";
 
 import { after } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { insertBrand, normalizeDomain } from "@/lib/brands";
 import { researchBrand } from "@/lib/brand-research";
@@ -32,6 +32,7 @@ export async function createBrand(formData: FormData) {
   // Build the brand's background profile in the background.
   after(() => researchBrand(id).catch(() => null));
   revalidatePath("/brands");
+  refresh();
   redirect(`/brands/${id}?new=1`);
 }
 
@@ -97,6 +98,7 @@ export async function confirmCandidate(candidateId: string, formData: FormData) 
     after(() => researchBrand(brandId).catch(() => null));
   }
   revalidatePath("/brands");
+  refresh();
   redirect(`/brands/${brandId}?confirmed=1`);
 }
 
@@ -106,6 +108,7 @@ export async function dismissCandidate(candidateId: string) {
     "dismiss candidate",
   );
   revalidatePath("/brands");
+  refresh();
 }
 
 export async function restoreCandidate(candidateId: string) {
@@ -114,6 +117,7 @@ export async function restoreCandidate(candidateId: string) {
     "restore candidate",
   );
   revalidatePath("/brands");
+  refresh();
 }
 
 export async function updateBrand(id: string, formData: FormData) {
@@ -139,11 +143,14 @@ export async function updateBrand(id: string, formData: FormData) {
   );
   revalidatePath(`/brands/${id}`);
   revalidatePath("/brands");
+  refresh();
+  redirect(`/brands/${id}?saved=1#brand-settings`);
 }
 
 export async function deleteBrand(id: string) {
   must(await supabaseAdmin().from("brands").delete().eq("id", id), "delete brand");
   revalidatePath("/brands");
+  refresh();
   redirect("/brands");
 }
 
@@ -171,10 +178,22 @@ export async function registerTestAccount(brandId: string, formData: FormData) {
     "register test account",
   );
   // Attach already-ingested emails sent to this address.
-  const account = (await sb.from("test_accounts").select("id").eq("brand_id", brandId).eq("email", email).eq("persona", str(formData.get("persona")) ?? "default").single()).data;
-  if (account) await sb.from("emails").update({ test_account_id: account.id }).eq("brand_id", brandId).eq("to_email", email).is("test_account_id", null);
+  const account = (await sb.from("test_accounts").select("id, registered_at").eq("brand_id", brandId).eq("email", email).eq("persona", str(formData.get("persona")) ?? "default").single()).data as { id: string; registered_at: string | null } | null;
+  let adjusted = false;
+  if (account) {
+    await sb.from("emails").update({ test_account_id: account.id }).eq("brand_id", brandId).eq("to_email", email).is("test_account_id", null);
+    // Signed up earlier than the time entered (e.g. confirmed in the tool later):
+    // day 0 is the first email the brand sent, so welcome emails aren't excluded.
+    const first = (await sb.from("emails").select("sent_at").eq("test_account_id", account.id).order("sent_at", { ascending: true }).limit(1)).data?.[0]?.sent_at as string | undefined;
+    if (first && account.registered_at && new Date(first) < new Date(account.registered_at)) {
+      await sb.from("test_accounts").update({ registered_at: first }).eq("id", account.id);
+      adjusted = true;
+    }
+  }
   revalidatePath(`/brands/${brandId}`);
   revalidatePath("/brands");
+  refresh();
+  redirect(`/brands/${brandId}?registered=1${adjusted ? "&adjusted=1" : ""}#test-accounts`);
 }
 
 export async function updateTestAccount(id: string, brandId: string, formData: FormData) {
@@ -192,9 +211,11 @@ export async function updateTestAccount(id: string, brandId: string, formData: F
     "update test account",
   );
   revalidatePath(`/brands/${brandId}`);
+  refresh();
 }
 
 export async function deleteTestAccount(id: string, brandId: string) {
   must(await supabaseAdmin().from("test_accounts").delete().eq("id", id), "delete test account");
   revalidatePath(`/brands/${brandId}`);
+  refresh();
 }

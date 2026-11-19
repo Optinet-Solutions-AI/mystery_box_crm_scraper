@@ -34,6 +34,7 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  if (pathname === "/login") return null; // no navigation before signing in
   return (
     <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
       <div className="px-4 py-5">
@@ -69,6 +70,7 @@ export function Sidebar() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  if (pathname === "/login") return null;
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 md:hidden">
       {NAV.filter((n) => !("section" in n)).map((item) =>

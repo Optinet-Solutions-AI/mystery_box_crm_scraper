@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtDate, fmtDateTime } from "@/lib/format";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { seriesColor, useIsDark } from "./theme";
@@ -94,7 +96,7 @@ export function DashboardTimeline({ lanes, events, from, to }: { lanes: Lane[]; 
               className="absolute -translate-x-1/2 whitespace-nowrap"
               style={{ left: `${pct(t)}%`, transform: i === 0 ? "none" : i === ticks.length - 1 ? "translateX(-100%)" : undefined }}
             >
-              {new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              {fmtDate(new Date(t), "MMM d")}
             </span>
           ))}
         </div>
@@ -114,7 +116,7 @@ export function DashboardTimeline({ lanes, events, from, to }: { lanes: Lane[]; 
           style={{ left: hover.x, top: hover.y - 6 }}
         >
           <div className="font-semibold text-ink">{lanes.find((l) => l.id === hover.e.brandId)?.name}</div>
-          <div className="text-muted">{new Date(hover.e.t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</div>
+          <div className="text-muted">{fmtDateTime(new Date(hover.e.t))}</div>
           <div className="mt-1 text-ink-2">{hover.e.subject}</div>
           {hover.e.isLaunch && hover.e.campaignTitle && <div className="mt-1 text-ink">Launch: {hover.e.campaignTitle}</div>}
         </div>

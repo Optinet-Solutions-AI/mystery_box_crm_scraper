@@ -51,7 +51,7 @@ function Src({ url }: { url: string | null | undefined }) {
   ) : null;
 }
 
-const join = (xs: string[]) => (xs.length ? xs.join(", ") : null);
+const join = (xs: string[]) => (xs.length ? xs.map((x) => x.trim().replace(/[.;,]+$/, "")).filter(Boolean).join(", ") : null);
 
 /** Background on the brand (AI web research + detected tech) and a summary of its email activity. */
 export async function BrandProfile({ brand }: { brand: Brand }) {
@@ -61,6 +61,7 @@ export async function BrandProfile({ brand }: { brand: Brand }) {
   const stats = computeBrandStats(ds, brand);
   const lastEmail = ds.emails.at(-1)?.sent_at ?? null;
   const researching = profile?.status === "researching";
+  const emailCount = (await sb.from("emails").select("id", { count: "exact", head: true }).eq("brand_id", brand.id)).count ?? 0;
 
   const techByCategory = (profile?.site_tech ?? []).reduce<Record<string, string[]>>((m, t) => {
     (m[t.category] ??= []).push(t.name);
@@ -143,8 +144,8 @@ export async function BrandProfile({ brand }: { brand: Brand }) {
                   {profile.email_platforms.length ? (
                     <div className="flex flex-wrap gap-1">
                       {profile.email_platforms.map((p) => (
-                        <Badge key={p.name} tone="accent">
-                          {p.name} · {p.emails} email{p.emails === 1 ? "" : "s"}
+                        <Badge key={p.name} tone="accent" title="Emails whose headers or links show this service. One email can use more than one.">
+                          {p.name} · {p.emails} of {emailCount} email{emailCount === 1 ? "" : "s"}
                         </Badge>
                       ))}
                     </div>

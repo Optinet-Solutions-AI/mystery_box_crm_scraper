@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { seal } from "@/lib/crypto";
 import { supabaseAdmin, must } from "@/lib/supabase";
@@ -12,6 +12,7 @@ const str = (v: FormDataEntryValue | null) => {
 
 function done(message?: string) {
   revalidatePath("/settings");
+  refresh();
   if (message) redirect(`/settings?notice=${encodeURIComponent(message)}`);
 }
 

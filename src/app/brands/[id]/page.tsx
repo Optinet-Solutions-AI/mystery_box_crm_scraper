@@ -66,6 +66,13 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
         }
       />
 
+      {sp.registered === "1" && (
+        <div className="mb-6 rounded-xl border border-good/30 bg-good/10 p-4 text-sm text-ink">
+          ✓ Signup recorded.
+          {sp.adjusted === "1" && " This brand had already emailed the account before the time you entered, so day 0 was set to its first email."}
+        </div>
+      )}
+      {sp.saved === "1" && <div className="mb-6 rounded-xl border border-good/30 bg-good/10 p-4 text-sm text-ink">✓ Brand settings saved.</div>}
       {sp.confirmed === "1" && (
         <div className="mb-6 rounded-xl border border-good/30 bg-good/10 p-4 text-sm text-ink">
           Signup confirmed — this brand is now tracked. Its past emails are being pulled in and analyzed in the background; refresh in a minute or two.
@@ -81,6 +88,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <span id="test-accounts" className="block scroll-mt-6" />
           <Card
             title="Test accounts"
             subtitle="Each signup is day 0 for lifecycle tracking. Emails sent to the account's address are attributed to it."
@@ -222,6 +230,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
             )}
           </Card>
 
+          <span id="brand-settings" className="block scroll-mt-6" />
           <Card title="Brand settings">
             <form action={updateBrand.bind(null, brand.id)} className="space-y-3">
               <Field label="Name">

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM Intel QA Plan</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ef;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --line: rgba(11,11,11,.12); --accent: #2a78d6;
+    --pass: #006300; --pass-bg: rgba(12,163,12,.10);
+    --fail: #b42323; --fail-bg: rgba(208,59,59,.10);
+    --block: #8a5a00; --block-bg: rgba(250,178,25,.18);
+    --warn-bg: rgba(250,178,25,.15);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+      --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --line: rgba(255,255,255,.12); --accent: #3987e5;
+      --pass: #0ca30c; --pass-bg: rgba(12,163,12,.16);
+      --fail: #e66767; --fail-bg: rgba(230,103,103,.14);
+      --block: #fab219; --block-bg: rgba(250,178,25,.14);
+      --warn-bg: rgba(250,178,25,.12);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h2 { font-size: 18px; margin: 0; }
+  p { margin: 0 0 8px; }
+  a { color: var(--accent); }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .sub { color: var(--ink-2); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  .warn { background: var(--warn-bg); border-color: rgba(250,178,25,.45); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  label.f { display: block; font-size: 12px; color: var(--ink-2); }
+  input[type=text], input[type=date], textarea, select {
+    width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+  }
+  textarea { min-height: 38px; resize: vertical; font-size: 13px; }
+  ul.rules { margin: 6px 0 0; padding-left: 20px; }
+  ul.rules li { margin: 3px 0; }
+  .sticky { position: sticky; top: 0; z-index: 5; background: var(--page); padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .meter { flex: 1 1 220px; height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; display: flex; }
+  .meter span { display: block; height: 100%; }
+  .chip { font-size: 13px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+  .chip.p { color: var(--pass); background: var(--pass-bg); }
+  .chip.f { color: var(--fail); background: var(--fail-bg); }
+  .chip.b { color: var(--block); background: var(--block-bg); }
+  button { font: inherit; font-size: 14px; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:hover { filter: brightness(.97); }
+  details.sec { margin-top: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  details.sec > summary { cursor: pointer; list-style: none; padding: 14px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  details.sec > summary::-webkit-details-marker { display: none; }
+  details.sec > summary::before { content: "▸"; color: var(--muted); }
+  details.sec[open] > summary::before { content: "▾"; }
+  .sec-count { margin-left: auto; font-size: 13px; color: var(--ink-2); }
+  .sec-intro { padding: 0 16px 8px; color: var(--ink-2); font-size: 14px; }
+  .step { display: grid; grid-template-columns: 44px minmax(0, 1.25fr) minmax(0, 1fr) 150px; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); align-items: start; }
+  .step .id { font-weight: 600; color: var(--muted); font-size: 13px; padding-top: 2px; }
+  .step .do ol { margin: 4px 0 0; padding-left: 18px; }
+  .step .exp { font-size: 14px; color: var(--ink-2); }
+  .step .exp b { color: var(--ink); font-weight: 600; }
+  .step .res { display: grid; gap: 6px; }
+  .step.p { box-shadow: inset 3px 0 0 var(--pass); }
+  .step.f { box-shadow: inset 3px 0 0 var(--fail); }
+  .step.b { box-shadow: inset 3px 0 0 var(--block); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-right: 4px; vertical-align: 1px; }
+  .tag.clean { background: var(--block-bg); color: var(--block); }
+  .tag.care { background: var(--fail-bg); color: var(--fail); }
+  .tag.ai { background: rgba(42,120,214,.12); color: var(--accent); }
+  .hdr { display: grid; grid-template-columns: 44px minmax(0, 1.25fr) minmax(0, 1fr) 150px; gap: 12px; padding: 6px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+  pre.tpl { white-space: pre-wrap; background: var(--surface-2); border-radius: 8px; padding: 12px; font-size: 13px; margin: 8px 0 0; }
+  @media (max-width: 760px) {
+    .step, .hdr { grid-template-columns: 1fr; }
+    .hdr { display: none; }
+    .step .id { padding: 0; }
+  }
+  @media print {
+    .sticky, button { display: none !important; }
+    details.sec { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CRM Intel: QA test plan</h1>
+  <p class="sub">Step-by-step checks for the competitor email intelligence tool. Work through each section, mark every step <b>Pass</b>, <b>Fail</b> or <b>Blocked</b>, and add a note for anything that isn't a pass. Your progress is saved in this browser automatically.</p>
+
+  <div class="card">
+    <div class="grid">
+      <div><label class="f" for="tester">Tester</label><input type="text" id="tester" placeholder="Your name"></div>
+      <div><label class="f" for="tdate">Test date</label><input type="date" id="tdate"></div>
+      <div><label class="f" for="device">Browser / device</label><input type="text" id="device" placeholder="e.g. Chrome on Windows"></div>
+    </div>
+    <p style="margin-top:12px">
+      <b>App:</b> <a href="https://mystery-box-crm-scraper.vercel.app" target="_blank" rel="noopener">mystery-box-crm-scraper.vercel.app</a> ·
+      <b>Password:</b> ask Chris (never write it in this file) ·
+      <b>Research inbox:</b> <code>christian.fletcher.rxpress@gmail.com</code>
+    </p>
+  </div>
+
+  <div class="card warn">
+    <h2>Before you start: this is the live system</h2>
+    <ul class="rules">
+      <li><b>Don't delete or edit real data.</b> Real brands, mailboxes, Google OAuth clients and detected signups stay as they are. Steps marked <span class="tag clean">cleanup</span> create test data — undo it in the same step.</li>
+      <li><b>Don't click links inside email previews</b> and don't use <i>Load images</i>. Both tell the competitor the research account opened the email, which changes the CRM journey we're measuring.</li>
+      <li><b>Don't click Disconnect</b> on the Gmail mailbox, and don't change Sync settings.</li>
+      <li>Steps marked <span class="tag ai">AI</span> call OpenAI (small cost, up to ~2 minutes). Run each once.</li>
+      <li>Steps marked <span class="tag care">careful</span> touch real data in a reversible way — follow the undo instruction.</li>
+      <li>If a <b>red banner</b> says Google access expired, mark the affected steps <b>Blocked</b> and tell Chris — no new emails arrive until it's reconnected.</li>
+    </ul>
+  </div>
+
+  <div class="sticky">
+    <div class="bar">
+      <strong id="sumText">0 / 0 run</strong>
+      <div class="meter" aria-hidden="true"><span id="mP" style="background:var(--pass)"></span><span id="mF" style="background:var(--fail)"></span><span id="mB" style="background:#fab219"></span></div>
+      <span class="chip p" id="cP">0 pass</span>
+      <span class="chip f" id="cF">0 fail</span>
+      <span class="chip b" id="cB">0 blocked</span>
+      <button type="button" id="expandAll">Expand all</button>
+      <button type="button" class="primary" id="exportBtn">Download results</button>
+      <button type="button" id="copyBtn">Copy results</button>
+      <button type="button" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div id="plan"></div>
+
+  <div class="card">
+    <h2>Reporting a bug</h2>
+    <p class="sub">For every <b>Fail</b>, send Chris a message with this template (one per bug) and a screenshot.</p>
+<pre class="tpl">Step: (e.g. E7)
+Page / URL:
+What I did:
+1.
+2.
+What I expected:
+What happened instead:
+Screenshot: attached
+Browser / device:
+Time it happened (with timezone):</pre>
+  </div>
+</div>
+
+<script>
+const PLAN = [
+  { id: "A", title: "Access & login", intro: "The whole app sits behind one team password.", steps: [
+    ["Open the app URL in a <b>private / incognito window</b>.", "A sign-in page appears asking for the team password."],
+    ["Enter a wrong password and click <b>Sign in</b>.", "“Wrong password.” is shown; you stay on the sign-in page."],
+    ["Enter the correct password and click <b>Sign in</b>.", "You land on the <b>Intelligence dashboard</b>. The left menu shows Dashboard, Compare, Calendar, Lifecycle, AI Analyst, Feed & alerts, Emails, Campaigns, Offers, Brands, Settings."],
+    ["In the private window, paste a deep link such as <code>/brands</code> before signing in (open a fresh private window).", "You're sent to the sign-in page, and after signing in you land on <b>/brands</b>."],
+    ["Narrow the browser to phone width (or open on a phone).", "A scrollable menu appears at the top instead of the sidebar. Pages don't scroll sideways."],
+  ]},
+  { id: "B", title: "Settings & Gmail health", intro: "Checks that the inbox is connected and emails are being collected and analyzed.", steps: [
+    ["Look at the top of any page.", "<b>No red banner.</b> (A red “Google access expired” banner means the mailbox must be reconnected — mark dependent steps Blocked and tell Chris.)"],
+    ["Open <b>Settings</b> → <i>Research mailboxes</i>.", "<code>christian.fletcher.rxpress@gmail.com</code> shows <b>✓ Connected</b>, “Gmail API”, and a recent “last sync”."],
+    ["Click the mailbox row to expand (<b>Manage ▾</b>) and click <b>Sync now</b>.", "Button shows “Working…”, then a message like “2 new, 5 already stored · 2 analyzed, 0 queued”. No red error text."],
+    ["Scroll to <i>Sync history</i>.", "Your sync appears at the top with status <b>success</b> and counts for Fetched / New / Dupes / Ignored."],
+    ["Check the <i>AI processing</i> card.", "Model shows <b>gpt-6.1-sol</b> (not “No OPENAI_API_KEY”). <b>Failed</b> is 0 — if not, note the number."],
+    ["In <i>Google OAuth clients</i>, open <b>How to create one</b>. <span class='tag care'>careful</span> Don't edit or delete the client.", "Steps are listed and the redirect URI shown ends in <code>/api/gmail/callback</code> on the current site address. At least one client is listed with a shortened client ID."],
+    ["Check <i>Ongoing sync</i>.", "Shows “✓ CRON_SECRET set”. Note whether the push topic shows configured or not (informational)."],
+  ]},
+  { id: "C", title: "Brands & signup detection", intro: "Brands can be added in the tool, or detected automatically after someone signs up directly on the operator's site.", steps: [
+    ["Open <b>Brands</b>.", "Tracked brands are listed: Crown Rips, Packz, Courtyard, JemLit, Whatnot, MISTY, HypeDrop, LuxBox (others may have been added). Each shows a test-account badge, email counts and “Last email”."],
+    ["In <i>Detected signups</i>, click <b>Scan inbox now</b>. <span class='tag ai'>AI</span>", "Within ~1–3 minutes: “Checked N emails · N new senders · N reviewed”. No error."],
+    ["Review any listed detected signups. <span class='tag care'>careful</span> Don't confirm or dismiss real ones without Chris.", "Each shows brand name, domain, “Signup detected …” or “First email …”, email count, an AI verdict badge with %, a one-line reason and sample subjects."],
+    ["If present, expand <b>Other senders found — not mystery box / cards</b> and <b>Dismissed</b>.", "They expand and list senders; nothing breaks if they're empty/absent."],
+    ["In <i>Add a brand manually</i>: Website domain <code>qa-test.example</code>, Name <code>QA Test Brand</code>, click <b>Add brand</b>. <span class='tag clean'>cleanup</span> (deleted in C9)", "You're taken to the new brand page with a blue “Brand added” message."],
+    ["On the QA brand page click <b>Open signup window</b>.", "A popup opens (the test domain won't load — that's fine) and the main page scrolls to <b>Confirm a signup</b>, highlighted."],
+    ["In <i>Confirm a signup</i>, keep the research email and current time, click <b>I've signed up</b>.", "Under <i>Test accounts</i> the account appears with the signup time; status <b>Registered</b>."],
+    ["In <i>Brand settings</i>, type <code>QA note</code> in Notes and click <b>Save</b>, then reload.", "The note is still there after reload."],
+    ["In <i>Brand settings</i>, click <b>Delete brand</b>. <span class='tag clean'>cleanup</span>", "You return to Brands; <b>QA Test Brand</b> is gone."],
+  ]},
+  { id: "D", title: "Brand profile pages", intro: "Each brand has an AI-researched profile plus its email activity.", steps: [
+    ["Open <b>Brands → Courtyard</b>.", "<i>Brand profile</i> card shows an overview and facts: Category, Went live, Founders (Nicolas le Jeune, Paulin Andurand), Headquarters, Company, Built on."],
+    ["Click two different <b>[source]</b> links.", "Each opens an external page in a new tab that supports the fact."],
+    ["Check the right-hand column.", "<i>Website technology (detected)</i> lists items such as Next.js / Polygon. <i>Email / CRM platform</i> shows a badge (e.g. Braze · N emails). Social links open."],
+    ["Expand <b>Sources (N)</b> and scan all profile text.", "Sources open. No raw link text like <code>([site](https://…))</code> or <code>utm_source=openai</code> anywhere in the profile."],
+    ["Check <i>Email activity — last 90 days</i>.", "Six tiles (Promotional emails, Emails / week, Campaigns, Offers, Use urgency, Last email) with numbers; “Most common” category badges. The Emails / Campaigns / Compare links work and are filtered to Courtyard."],
+    ["Open <b>Packz</b> and click <b>Refresh research</b>. <span class='tag ai'>AI</span>", "“Working…” then “Done” within ~1 minute; the subtitle updates to “AI web research … ago”."],
+    ["Open <b>LuxBox</b>.", "Profile loads with low confidence and a caveat explaining limited public info. Unknown fields read “Not stated” — nothing invented."],
+    ["Open <b>Crown Rips</b> and check founders/HQ.", "Fields without a source show “Not stated”; facts that are shown have [source] links."],
+  ]},
+  { id: "E", title: "Emails", intro: "Every email collected from tracked brands, with the AI analysis.", steps: [
+    ["Open <b>Emails</b>.", "List loads newest first; header shows the total count; each row has brand, subject, AI summary, type and categories."],
+    ["Filter: Brand = Crown Rips, Type = Promotional, click <b>Filter</b>.", "Only Crown Rips promotional emails are listed. <b>Clear</b> resets the filters."],
+    ["Search <code>Pokemon</code> and click <b>Filter</b>.", "Results contain “Pokemon” in subject or preview."],
+    ["Pick a category (e.g. Welcome / onboarding).", "Only emails with that category are shown."],
+    ["If there are over 50 emails, use <b>Older →</b> and <b>← Newer</b>.", "Pages move correctly and the range text updates."],
+    ["Open any promotional email. <span class='tag care'>careful</span> Don't click links in the preview, don't use Load images.", "Original email renders on the left; images appear as grey placeholders; subtitle says images and tracking pixels are blocked."],
+    ["Check <i>Email details</i>.", "From, Sender domain, To, Test account, Preview text, Sent, Received, Gmail message/thread ID are filled. Promo codes / Unsubscribe appear when present."],
+    ["Check <i>AI analysis</i>.", "Summary, type badge, category badges and fields (Main message, Tone, Urgency, CTAs, Creative format…). Confidence shown in the subtitle."],
+    ["Check <i>Offers</i> (pick an email with an offer, e.g. a JemLit deposit bonus).", "Offer card with type, headline, value, requirement, cap, code, dates, conditions and a quoted line from the email. Missing values read “Not stated”."],
+    ["In <i>Corrections</i>, tick one extra category and click <b>Save categories</b>. <span class='tag clean'>cleanup</span>", "“Manually corrected” badge appears and the new category shows. Then untick it and save again to restore."],
+    ["Click <b>Re-analyze</b>. <span class='tag ai'>AI</span>", "“Working…” then “Done”; the page refreshes with the analysis still present."],
+    ["In the <i>Campaign</i> card, click the campaign link.", "Opens the campaign page that contains this email."],
+  ]},
+  { id: "F", title: "Campaigns", intro: "Related emails grouped automatically. Campaigns are always labelled inferred until a person confirms them.", steps: [
+    ["Open <b>Campaigns</b>.", "Header shows the number of estimated campaigns vs promotional emails. Rows show brand, type, offer, email count, active dates, expiry and status badges incl. <b>Inferred</b>."],
+    ["Use the filter bar (brand, date range).", "List updates; the URL changes with the filters."],
+    ["Open a campaign with 2+ emails.", "Grey notice says the campaign is inferred. Emails table shows roles (launch / follow up / repeat / variation); offers listed once; launch email preview on the right."],
+    ["Click <b>Confirm grouping</b>, then <b>✓ Confirmed — undo</b>. <span class='tag clean'>cleanup</span>", "Badge switches to Confirmed and the inferred notice disappears; after undo it returns to Inferred."],
+    ["Rename the campaign, then rename it back. <span class='tag clean'>cleanup</span>", "Title updates after each save."],
+  ]},
+  { id: "G", title: "Offers", intro: "All structured offers extracted from promotional emails.", steps: [
+    ["Open <b>Offers</b>.", "Table with brand, offer type, value, minimum, maximum, code, eligibility, conditions, expiry and email date. Missing values read “Not stated”."],
+    ["Click <b>Active only</b>, then a type such as <b>Discount</b>.", "List narrows accordingly; clicking again resets."],
+    ["Click an email date in the last column.", "Opens the source email."],
+  ]},
+  { id: "H", title: "Dashboard", intro: "Overview of competitor activity with global filters.", steps: [
+    ["Open <b>Dashboard</b>.", "Eight KPI cards: Competitors monitored, Active competitors sending, Marketing emails collected, Unique campaigns (est.), Active offers, New offers in period, Offers expiring in 7 days, Brands with big CRM changes."],
+    ["Change the date range (e.g. Last 7 days → Last 90 days) and select 2 brands in the brand dropdown.", "Numbers and charts update; the URL keeps the filters (reload keeps them)."],
+    ["Choose <b>Custom range</b> and set from/to dates.", "Date inputs appear and data updates for that range."],
+    ["<i>Competitor activity timeline</i>: hover marks, click one.", "Tooltip shows details; clicking opens the email or campaign."],
+    ["<i>Campaign volume</i>: switch Promotional emails ↔ New campaigns and Daily ↔ Weekly; hover bars.", "Chart redraws; legend names brands; tooltip shows counts. Only one y-axis."],
+    ["<i>Top offers</i> and <i>New intelligence</i>: click a link in each.", "Links open the right email / campaign."],
+    ["Read the share-of-emails widget title.", "It says it's inbox-observed promotional emails, <b>not market share</b>."],
+    ["<i>AI intelligence summary</i> → <b>Generate summary</b>. <span class='tag ai'>AI</span>", "Within ~2 minutes findings appear, each with evidence links that open."],
+  ]},
+  { id: "I", title: "Compare", intro: "Side-by-side comparison of 2–10 brands.", steps: [
+    ["Open <b>Compare</b> with no brands selected.", "Page explains it's comparing all brands (up to 10) or asks for at least two."],
+    ["Select 2–3 brands in the brand dropdown.", "Scorecard, charts, benchmarks and the side-by-side table update to those brands."],
+    ["<i>Competitor scorecard</i>: check the six scores, Overall, Data coverage and Confidence.", "Scores 0–100; formulas are visible; a note says scores reflect inbox-observed behaviour only."],
+    ["Move one weight slider, click <b>Save weights</b>, reload, then click <b>Reset</b>. <span class='tag clean'>cleanup</span>", "Overall changes when moving the slider; “Saved” confirms; weights persist after reload; Reset restores defaults."],
+    ["Check <i>Promotional emails per week</i> and <i>When each brand sends</i> (weekday heatmap).", "Charts render with tooltips; heatmap cells shade by volume."],
+    ["Check <i>Benchmarks</i>.", "Answers (highest bonus %, highest amount, most campaigns, cashback frequency, new retention campaigns, Brand A vs B) each link to evidence."],
+    ["Check <i>Side-by-side comparison</i>.", "Grouped rows (CRM Activity, Timing, Promotions, Lifecycle…). Unknowns say “Not observed” / “No test account registered”; brand names link to their pages."],
+  ]},
+  { id: "J", title: "Calendar", intro: "Marketing calendar of inferred campaigns.", steps: [
+    ["Open <b>Calendar</b>.", "Month view with campaign events showing brand logo/dot, title and an <b>Inferred</b> marker."],
+    ["Switch <b>View</b> Month → Week → Day and use <b>Previous / Next</b>.", "Calendar changes view and period correctly."],
+    ["Change <b>Campaign type</b> and <b>Promotion type</b>.", "Only matching events remain."],
+    ["Switch <b>Dates shown</b>: Email send dates ↔ Advertised promo dates.", "Events move to the offer start→end dates; only offers with stated dates appear."],
+    ["Click an event.", "Opens the campaign page."],
+    ["Check <i>Additional intelligence</i>.", "Sections render: Upcoming expiries, Same event multiple competitors, Overlapping campaigns, Repeated promotions, Gaps in activity (empty sections are fine)."],
+  ]},
+  { id: "K", title: "Lifecycle", intro: "CRM journey of each test account from signup day.", steps: [
+    ["Open <b>Lifecycle</b> and pick 2+ accounts in <b>Compare accounts</b>, window <b>First 30 days</b>.", "<i>Journey comparison</i> shows one lane per account aligned to day 0, colored marks with a legend."],
+    ["Hover and click a mark.", "Tooltip shows the email; clicking opens it."],
+    ["Check <i>Lifecycle metrics</i> and <i>Incentives by stage</i>.", "Time to first email / welcome, first 24h, days 1–7, days 8–30 counts; offer types per stage. Wording says these are observed behaviour."],
+    ["In an account timeline, <b>Record an action on this account</b>: Login / visit, note <code>QA test</code>, <b>Add action</b>. <span class='tag clean'>cleanup</span>", "A diamond marker appears on the timeline; then click <b>Remove</b> on it to delete."],
+    ["Find an account with <b>Signup time missing</b> (if any).", "A prompt to set the signup time is shown with <b>Set signup time</b>. Don't change real ones."],
+  ]},
+  { id: "L", title: "AI Analyst", intro: "Ask questions in plain English; answers come from the structured data.", steps: [
+    ["Open <b>AI Analyst</b> and click an example question. <span class='tag ai'>AI</span>", "A thinking state shows, then an answer within ~2 minutes."],
+    ["Read the answer.", "Starts with a direct answer, gives numbers, and links supporting emails/campaigns. Links open the right pages."],
+    ["Ask a follow-up, e.g. <code>Which of those is the most aggressive?</code> <span class='tag ai'>AI</span>", "It uses the previous answer as context."],
+    ["Ask <code>What offers does Amazon send?</code> <span class='tag ai'>AI</span>", "Says Amazon isn't tracked / there's no data — doesn't invent offers."],
+    ["Click <b>New conversation</b>.", "Chat clears."],
+  ]},
+  { id: "M", title: "Feed & alerts", intro: "Automatic intelligence items and alert rules.", steps: [
+    ["Open <b>Feed & alerts</b>.", "Chronological items (new campaigns, new incentive types, volume changes, expiring offers, AI findings) with evidence links."],
+    ["Use the type / severity / <b>Unread</b> filters; <b>Mark read</b> one item, then <b>Mark unread</b>.", "List filters; the item's read state toggles."],
+    ["Go to <a href='https://webhook.site' target='_blank' rel='noopener'>webhook.site</a> and copy your unique URL.", "You have a temporary webhook URL."],
+    ["Create a rule: Name <code>QA test rule</code>, Trigger any, Webhook URL from webhook.site, <b>Add alert rule</b>. <span class='tag clean'>cleanup</span>", "Rule appears in <i>Alert rules</i>."],
+    ["<b>Pause</b>, <b>Resume</b>, then <b>Delete</b> the QA rule.", "State changes each time; after Delete the rule is gone."],
+  ]},
+  { id: "N", title: "General", intro: "Cross-cutting checks.", steps: [
+    ["Switch your computer to dark mode and browse a few pages.", "Text, charts and badges stay readable."],
+    ["Time a few page loads after the first one.", "Most pages load in under ~3 seconds (the very first load after a quiet period can take longer)."],
+    ["Browse every menu item once more.", "No error screens or blank pages. Note any page that shows an error."],
+    ["Look for a way to sign out.", "Known limitation: there is no sign-out button yet (clearing site cookies signs you out). Mark Pass and note it."],
+  ]},
+];
+
+const KEY = "crm-intel-qa-v1";
+const STATUS = [["", "Not run"], ["p", "Pass"], ["f", "Fail"], ["b", "Blocked"]];
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+function render() {
+  const plan = document.getElementById("plan");
+  plan.innerHTML = "";
+  for (const sec of PLAN) {
+    const d = document.createElement("details");
+    d.className = "sec";
+    d.id = "sec-" + sec.id;
+    d.open = sec.id === "A";
+    d.innerHTML =
+      `<summary><h2>${sec.id}. ${sec.title}</h2><span class="sec-count" data-sec="${sec.id}"></span></summary>` +
+      `<p class="sec-intro">${sec.intro}</p>` +
+      `<div class="hdr"><span>#</span><span>Do this</span><span>Expected result</span><span>Result</span></div>`;
+    sec.steps.forEach(([doThis, expected], i) => {
+      const id = `${sec.id}${i + 1}`;
+      const s = state[id] || {};
+      const row = document.createElement("div");
+      row.className = "step " + (s.r || "");
+      row.innerHTML =
+        `<div class="id">${id}</div>` +
+        `<div class="do">${doThis}</div>` +
+        `<div class="exp">${expected}</div>` +
+        `<div class="res"><select aria-label="Result for ${id}">${STATUS.map(([v, l]) => `<option value="${v}"${(s.r || "") === v ? " selected" : ""}>${l}</option>`).join("")}</select>` +
+        `<textarea aria-label="Notes for ${id}" placeholder="Notes">${(s.n || "").replace(/</g, "&lt;")}</textarea></div>`;
+      const sel = row.querySelector("select");
+      const ta = row.querySelector("textarea");
+      sel.addEventListener("change", () => { state[id] = { ...state[id], r: sel.value }; row.className = "step " + sel.value; save(); summary(); });
+      ta.addEventListener("input", () => { state[id] = { ...state[id], n: ta.value }; save(); });
+      d.appendChild(row);
+    });
+    plan.appendChild(d);
+  }
+  for (const f of ["tester", "tdate", "device"]) {
+    const el = document.getElementById(f);
+    el.value = state["_" + f] || (f === "tdate" ? new Date().toISOString().slice(0, 10) : "");
+    el.addEventListener("input", () => { state["_" + f] = el.value; save(); });
+  }
+  summary();
+}
+
+function counts(filter) {
+  const c = { total: 0, p: 0, f: 0, b: 0 };
+  for (const sec of PLAN) {
+    if (filter && sec.id !== filter) continue;
+    sec.steps.forEach((_, i) => { c.total++; const r = (state[`${sec.id}${i + 1}`] || {}).r; if (r) c[r]++; });
+  }
+  return c;
+}
+
+function summary() {
+  const c = counts();
+  const run = c.p + c.f + c.b;
+  document.getElementById("sumText").textContent = `${run} / ${c.total} run`;
+  for (const [k, el] of [["p", "mP"], ["f", "mF"], ["b", "mB"]]) document.getElementById(el).style.width = (c[k] / c.total * 100) + "%";
+  document.getElementById("cP").textContent = `${c.p} pass`;
+  document.getElementById("cF").textContent = `${c.f} fail`;
+  document.getElementById("cB").textContent = `${c.b} blocked`;
+  document.querySelectorAll(".sec-count").forEach((el) => {
+    const s = counts(el.dataset.sec);
+    el.textContent = `${s.p + s.f + s.b}/${s.total} run` + (s.f ? ` · ${s.f} fail` : "") + (s.b ? ` · ${s.b} blocked` : "");
+  });
+}
+
+function report() {
+  const c = counts();
+  const label = { "": "NOT RUN", p: "PASS", f: "FAIL", b: "BLOCKED" };
+  const lines = [
+    "CRM Intel - QA results",
+    `Tester: ${state._tester || "-"}   Date: ${state._tdate || "-"}   Browser/device: ${state._device || "-"}`,
+    `Summary: ${c.p} pass, ${c.f} fail, ${c.b} blocked, ${c.total - c.p - c.f - c.b} not run (of ${c.total})`,
+    "",
+  ];
+  for (const sec of PLAN) {
+    lines.push(`${sec.id}. ${sec.title}`);
+    sec.steps.forEach(([doThis], i) => {
+      const id = `${sec.id}${i + 1}`;
+      const s = state[id] || {};
+      const plain = doThis.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&");
+      lines.push(`  [${label[s.r || ""]}] ${id} ${plain.slice(0, 90)}${plain.length > 90 ? "..." : ""}`);
+      if (s.n) lines.push(`        Note: ${s.n.replace(/\n/g, " ")}`);
+    });
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const blob = new Blob([report()], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `crm-intel-qa-${state._tdate || "results"}.txt`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+document.getElementById("copyBtn").addEventListener("click", async (e) => {
+  try { await navigator.clipboard.writeText(report()); e.target.textContent = "Copied"; }
+  catch { e.target.textContent = "Copy failed - use Download"; }
+  setTimeout(() => (e.target.textContent = "Copy results"), 2000);
+});
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("Clear all results and notes in this browser?")) return;
+  state = {}; save(); render();
+});
+document.getElementById("expandAll").addEventListener("click", (e) => {
+  const all = [...document.querySelectorAll("details.sec")];
+  const open = all.some((d) => !d.open);
+  all.forEach((d) => (d.open = open));
+  e.target.textContent = open ? "Collapse all" : "Expand all";
+});
+render();
+</script>
+</body>
+</html>

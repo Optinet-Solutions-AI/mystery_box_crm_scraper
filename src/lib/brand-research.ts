@@ -227,6 +227,11 @@ export function cleanCitations<T>(value: T, found: { title: string; url: string 
 export async function researchBrand(brandId: string): Promise<void> {
   const sb = supabaseAdmin();
   const brand = must(await sb.from("brands").select("*").eq("id", brandId).single(), "load brand") as Brand;
+  if (/\.(example|test|invalid|localhost|local)$/i.test(brand.domain)) {
+    const error = `${brand.domain} is a reserved test domain, so there's nothing to research.`;
+    await sb.from("brand_profiles").upsert({ brand_id: brandId, status: "error", error, updated_at: new Date().toISOString() });
+    throw new Error(error);
+  }
   if (SERVICE_PROVIDER_DOMAINS.includes(brand.domain)) {
     const error = `${brand.domain} is a login / email service used by many brands, not ${brand.name}'s own website. Set the real website domain in Brand settings, then research again.`;
     await sb.from("brand_profiles").upsert({ brand_id: brandId, status: "error", error, updated_at: new Date().toISOString() });

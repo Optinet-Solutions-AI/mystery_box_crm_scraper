@@ -159,6 +159,8 @@ export async function processEmail(emailId: string, opts: { force?: boolean } = 
       .eq("id", emailId);
 
     if (previousCampaign && previousCampaign !== campaignId) await refreshCampaignCounts(previousCampaign);
+    // Recount from the emails themselves (re-analysis must not double-count).
+    if (campaignId) await refreshCampaignCounts(campaignId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const giveUp = err instanceof AnalysisRefusedError || email.processing_attempts + 1 >= MAX_ATTEMPTS;

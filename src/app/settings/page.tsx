@@ -197,7 +197,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                   <td className="px-3 py-2">{r.inserted}</td>
                   <td className="px-3 py-2">{r.duplicates}</td>
                   <td className="px-3 py-2">{r.ignored}</td>
-                  <td className="max-w-xs truncate px-3 py-2 text-xs text-bad" title={r.error ?? ""}>
+                  <td className="max-w-sm px-3 py-2 text-xs break-words whitespace-normal text-bad">
                     {r.error}
                   </td>
                 </tr>

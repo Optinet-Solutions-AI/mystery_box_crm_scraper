@@ -14,28 +14,46 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
   const sb = await db();
   const brands = must(await sb.from("brands").select("*").order("name")) as Brand[];
 
-  let q = sb.from("emails").select(EMAIL_LIGHT_COLUMNS, { count: "exact" });
-  if (sp.brand) q = q.eq("brand_id", sp.brand);
-  if (sp.type === "promotional") q = q.eq("is_promotional", true);
-  else if (sp.type) q = q.eq("email_type", sp.type);
-  if (sp.status) q = q.eq("processing_status", sp.status);
-  if (sp.q) q = q.or(`subject.ilike.%${sp.q.replace(/[%,()]/g, " ")}%,preview_text.ilike.%${sp.q.replace(/[%,()]/g, " ")}%`);
-  if (sp.campaign) q = q.eq("campaign_id", sp.campaign);
-  if (sp.account) q = q.eq("test_account_id", sp.account);
-
   // Category filter needs the analysis table: resolve matching ids first.
+  let categoryIds: string[] | null = null;
   if (sp.category) {
     const ids = must(
       await sb.from("email_analyses").select("email_id").or(`categories.cs.{${sp.category}},manual_categories.cs.{${sp.category}},industry_categories.cs.{${sp.category}}`).limit(5000),
     ) as { email_id: string }[];
-    q = q.in("id", ids.length ? ids.map((r) => r.email_id) : ["00000000-0000-0000-0000-000000000000"]);
+    categoryIds = ids.length ? ids.map((r) => r.email_id) : ["00000000-0000-0000-0000-000000000000"];
   }
 
-  const res = await q.order("sent_at", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+  const term = (sp.q ?? "").replace(/[%,()]/g, " ").trim();
+  // Accent-insensitive search uses the search_text column; falls back to plain matching if it doesn't exist yet.
+  const run = (accentInsensitive: boolean) => {
+    let q = sb.from("emails").select(EMAIL_LIGHT_COLUMNS, { count: "exact" });
+    if (sp.brand) q = q.eq("brand_id", sp.brand);
+    if (sp.type === "promotional") q = q.eq("is_promotional", true);
+    else if (sp.type) q = q.eq("email_type", sp.type);
+    if (sp.status) q = q.eq("processing_status", sp.status);
+    if (term) {
+      q = accentInsensitive
+        ? q.ilike("search_text", `%${term.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()}%`)
+        : q.or(`subject.ilike.%${term}%,preview_text.ilike.%${term}%`);
+    }
+    if (sp.campaign) q = q.eq("campaign_id", sp.campaign);
+    if (sp.account) q = q.eq("test_account_id", sp.account);
+    if (categoryIds) q = q.in("id", categoryIds);
+    return q.order("sent_at", { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1);
+  };
+  let res = await run(Boolean(term));
+  if (res.error && term) res = await run(false);
   const emails = must(res) as unknown as EmailLight[];
   const total = res.count ?? 0;
   const analyses = emails.length ? (must(await sb.from("email_analyses").select("*").in("email_id", emails.map((e) => e.id))) as EmailAnalysis[]) : [];
   const byId = new Map(analyses.map((a) => [a.email_id, a]));
+  const offers = emails.length
+    ? ((await sb.from("offers").select("email_id, incentive_text, headline, promo_code").in("email_id", emails.map((e) => e.id))).data ?? [])
+    : [];
+  const offersBy = new Map<string, { incentive_text: string | null; headline: string | null; promo_code: string | null }[]>();
+  for (const o of offers as { email_id: string; incentive_text: string | null; headline: string | null; promo_code: string | null }[]) {
+    offersBy.set(o.email_id, [...(offersBy.get(o.email_id) ?? []), o]);
+  }
   const brandIdx = new Map(brands.map((b, i) => [b.id, i]));
 
   const qs = (patch: Record<string, string | undefined>) => {
@@ -47,7 +65,7 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader title="Emails" description={`${total.toLocaleString()} emails from tracked brands. Only mail from brands you track is ever stored.`} />
 
-      <form className="mb-4 flex flex-wrap items-center gap-2" action="/emails">
+      <form key={JSON.stringify(sp)} className="mb-4 flex flex-wrap items-center gap-2" action="/emails">
         <input name="q" defaultValue={sp.q} placeholder="Search subject or preview…" className={`${inputClass} max-w-xs`} />
         <select name="brand" defaultValue={sp.brand ?? ""} className={`${inputClass} w-auto`}>
           <option value="">All brands</option>
@@ -122,7 +140,17 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
                       ))}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-xs text-ink-2">{e.promo_codes.length ? e.promo_codes.join(", ") : ""}</td>
+                  <td className="max-w-[14rem] px-3 py-2 text-xs text-ink-2">
+                    {(offersBy.get(e.id) ?? []).slice(0, 2).map((o, i) => (
+                      <div key={i} className="truncate" title={o.headline ?? ""}>
+                        {o.incentive_text ?? o.headline}
+                      </div>
+                    ))}
+                    {(() => {
+                      const codes = [...new Set([...e.promo_codes, ...(offersBy.get(e.id) ?? []).map((o) => o.promo_code).filter((c): c is string => !!c)])];
+                      return codes.length ? <div className="font-mono">{codes.join(", ")}</div> : null;
+                    })()}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap text-ink-2">{fmtDateTime(e.sent_at)}</td>
                 </tr>
               );
