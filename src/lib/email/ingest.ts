@@ -74,7 +74,16 @@ export async function ingestParsedEmail(
       )
       .select("*");
     account = (created.data?.[0] as TestAccount | undefined) ?? null;
-    if (account) accounts.push(account);
+    if (account) {
+      accounts.push(account);
+      // Earlier emails from this brand to this address belong to the new account too.
+      await sb.from("emails").update({ test_account_id: account.id }).eq("brand_id", match.brand.id).eq("to_email", toEmail).is("test_account_id", null);
+      const first = (await sb.from("emails").select("sent_at").eq("test_account_id", account.id).order("sent_at", { ascending: true }).limit(1)).data?.[0]?.sent_at as string | undefined;
+      if (first && (!account.registered_at || new Date(first) < new Date(account.registered_at))) {
+        await sb.from("test_accounts").update({ registered_at: first }).eq("id", account.id);
+        account.registered_at = first;
+      }
+    }
   }
   // Detected accounts start at the earliest email seen (backfills arrive newest-first).
   if (account && account.signup_method === "detected" && sentAt && (!account.registered_at || new Date(sentAt) < new Date(account.registered_at))) {
