@@ -25,9 +25,18 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
+/**
+ * Email click-tracking redirects (SendGrid /ls/click, Klaviyo, Customer.io, Braze...).
+ * Every link in a brand's emails goes through the same redirect path and only the
+ * query differs, so they say nothing about the real landing page.
+ */
+const TRACKING_URL =
+  /^(link|links|click|clicks|track|tracking|email|e|t|url\d*|ct|go|r|trk)\.|klclick|ctrk\.klclick|customeriomail|e\.customeriomail|\.braze|iterable|sendgrid\.net|mandrillapp|list-manage|hubspotlinks|\/ls\/click|\/wf\/click|\/c\/[a-z0-9]|\/click\b|\/track\b/i;
+
 export function normalizeUrl(url: string): string | null {
   try {
     const u = new URL(url);
+    if (TRACKING_URL.test(u.hostname) || TRACKING_URL.test(u.pathname)) return null;
     return `${u.hostname.replace(/^www\./, "")}${u.pathname.replace(/\/$/, "")}`.toLowerCase();
   } catch {
     return null;
